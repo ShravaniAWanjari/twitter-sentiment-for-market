@@ -1,15 +1,15 @@
 Model,Class,Precision,Recall,F1-Score,Support
-          ,Bearish,0.826,0.807,0.816,347
+ModernBert,Bearish,0.826,0.807,0.816,347
           ,Bullish,0.877,0.823,0.849,475
           ,Neutral,0.920,0.942,0.931,1566
           ,Macro Avg,0.874,0.857,0.865,2388
           ,Weighted Avg,0.898,0.899,0.898,2388
-          ,Bearish,0.766,0.813,0.789,347
+FinBert   ,Bearish,0.766,0.813,0.789,347
           ,Bullish,0.836,0.815,0.825,475
           ,Neutral,0.924,0.919,0.922,1566
           ,Macro Avg,0.842,0.849,0.845,2388
           ,Weighted Avg,0.884,0.883,0.883,2388
-          ,Bearish,0.775,0.813,0.793,347
+Bert-Base ,Bearish,0.775,0.813,0.793,347
           ,Bullish,0.845,0.815,0.830,475
           ,Neutral,0.917,0.917,0.917,1566
           ,Macro Avg,0.846,0.848,0.847,2388
