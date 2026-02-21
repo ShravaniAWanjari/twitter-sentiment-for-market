@@ -1,0 +1,46 @@
+# Virtual environments
+capstone/
+venv/
+.venv/
+env/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.ipynb_checkpoints/
+
+# Frontend artifacts
+node_modules/
+dist/
+build/
+.vite/
+
+# ML specific
+dataset/
+results/
+experiments/runs/
+experiments/*_runs/
+models/*.pt
+models/*.bin
+models/*.safetensors
+
+# Logs and databases
+*.log
+*.sqlite
+
+# OS and Editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.sln
+
+# Large CSV files
+# Ignore all CSVs by default, but allow benchmark_results.csv if it's a small summary
+*.csv
+!benchmark_results.csv
+
+# Sensitive
+.env

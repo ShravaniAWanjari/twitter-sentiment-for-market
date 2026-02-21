@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ModernBERT & Transformer Benchmarking Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --text-primary: #e4e4e7;
+            --text-secondary: #a1a1aa;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .background-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+                radial-gradient(ellipse 60% 50% at 0% 100%, rgba(139, 92, 246, 0.1), transparent);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            width: min(1200px, 100%);
+        }
+
+        nav {
+            padding: 2rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .hero {
+            padding: 5rem 0 4rem;
+            text-align: center;
+        }
+
+        .badge-group {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.4rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -2px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+            line-height: 1.8;
+        }
+
+        .section {
+            margin: 5rem 0;
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 2.5rem;
+            letter-spacing: -1px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        }
+
+        .grid-1 {
+            grid-template-columns: 1fr;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .card p, .card ul {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .card li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .card li::before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        .code-block {
+            background: #0d0d12;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+
+        .code-block code {
+            color: #e4e4e7;
+        }
+
+        .comment {
+            color: #71717a;
+        }
+
+        .command {
+            color: #a78bfa;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero {
+                padding: 3rem 0 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        .highlight {
+            color: var(--accent-light);
+            font-weight: 600;
+        }
+
+        .pill-container {
+            display: inline-flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            background: var(--bg-tertiary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        .table-wrapper {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.5rem;
+            background: #0f0f16;
+        }
+
+        .table-wrapper.scrollable {
+            max-height: 460px;
+            overflow: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .data-table td,
+        .data-table th {
+            white-space: normal;
+            word-break: break-word;
+        }
+
+        .data-table th[data-col="text"],
+        .data-table td[data-col="text"] {
+            width: 46%;
+        }
+
+        .data-table th[data-col="topk_probs"],
+        .data-table td[data-col="topk_probs"] {
+            width: 22%;
+        }
+
+        .data-table td[data-col="pred_confidence"] {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .data-table td[data-col="text"] {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .data-table th {
+            position: sticky;
+            top: 0;
+            background: #0f0f16;
+            z-index: 1;
+        }
+
+        .data-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .controls label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .controls select,
+        .controls input {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.4rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            width: 80px;
+        }
+
+        .controls button {
+            background: var(--accent);
+            border: none;
+            color: white;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .controls button:hover {
+            background: var(--accent-light);
+        }
+
+        .notice {
+            padding: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-placeholder {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 2rem;
+        }
+
+        .chart-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .chart-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-controls label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-controls select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.4rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        #benchmark-chart {
+            width: 100%;
+            height: 320px;
+            display: block;
+        }
+
+        .chart-caption {
+            margin-top: 0.75rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-wrap {
+            position: relative;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            background: rgba(15, 15, 22, 0.95);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.4rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -120%);
+            transition: opacity 0.12s ease;
+            white-space: nowrap;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-tertiary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-light);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        footer {
+            margin-top: 8rem;
+            padding: 3rem 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-gradient"></div>
+    
+    <nav class="container">
+        <div class="logo">⚡ ModernBERT Suite</div>
+        <ul class="nav-links">
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#architecture">Architecture</a></li>
+            <li><a href="#benchmarks">Benchmarks</a></li>
+            <li><a href="#error-analysis">Error Analysis</a></li>
+            <li><a href="#getting-started">Getting Started</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero container">
+        <div class="badge-group">
+            <span class="badge">Capstone Project</span>
+            <span class="badge">XAI-Ready</span>
+            <span class="badge">Crypto NLP</span>
+        </div>
+        <h1>ModernBERT & Transformer<br>Benchmarking Suite</h1>
+        <p class="subtitle">
+            A modular, attribution-friendly benchmarking engine comparing ModernBERT, CryptoBERT, FinBERT, and DeBERTa-v3 on crypto sentiment analysis. Built to scale into Captum Integrated Gradients without refactoring.
+        </p>
+    </section>
+
+    <section id="overview" class="section container">
+        <h2>Key Features</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>Unified Architecture</h3>
+                <p>CryptoTransformerBase standardizes model wrappers with accessible embeddings, attention mechanisms, and forward passes that return logits, hidden states, and attention maps.</p>
+            </div>
+            <div class="card">
+                <h3>Multi-Model Support</h3>
+                <p>Built-in support for ModernBERT, CryptoBERT, FinBERT, and DeBERTa-v3, all inheriting from a common base class for consistent behavior.</p>
+            </div>
+            <div class="card">
+                <h3>XAI Integration</h3>
+                <p>Designed for explainability with exposed embedding layers and attention modules, ready for Captum Integrated Gradients analysis.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="architecture" class="section container">
+        <h2>Project Architecture</h2>
+        <div class="feature-grid">
+            <div class="card">
+                <h3>Core Components</h3>
+                <ul>
+                    <li><strong>core/</strong> — Base classes and preprocessing</li>
+                    <li><strong>models/</strong> — Model wrappers</li>
+                    <li><strong>experiments/</strong> — Training scripts</li>
+                    <li><strong>dataset/</strong> — Training/validation data</li>
+                    <li><strong>results/</strong> — Plots and artifacts</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Data Pipeline</h3>
+                <p>The bitcoin sentiment dataset is processed with continuous scores mapped to three classes:</p>
+                <div class="pill-container" style="margin-top: 1rem;">
+                    <span class="pill">Bearish (< -0.05)</span>
+                    <span class="pill">Neutral (-0.05 to 0.05)</span>
+                    <span class="pill">Bullish (> 0.05)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Transformer Models</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">3</div>
+                <div class="stat-label">Sentiment Classes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">100%</div>
+                <div class="stat-label">XAI Compatible</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="benchmarks" class="section container">
+        <h2>Benchmarking Metrics</h2>
+        <div class="card">
+            <p>The suite provides comprehensive evaluation across multiple dimensions:</p>
+            <ul>
+                <li><strong>Accuracy</strong> — Overall classification performance</li>
+                <li><strong>Precision/Recall/F1</strong> — Macro and weighted averaging</li>
+                <li><strong>Latency</strong> — Inference time per tweet</li>
+                <li><strong>Slang Robustness</strong> — Performance on informal language</li>
+            </ul>
+            <div class="chart-card">
+                <div class="chart-title">Model Comparison</div>
+                <div class="chart-controls">
+                    <label for="metric-select">Metric</label>
+                    <select id="metric-select"></select>
+                    <label for="sort-select">Sort</label>
+                    <select id="sort-select">
+                        <option value="desc">High → Low</option>
+                        <option value="asc">Low → High</option>
+                    </select>
+                </div>
+                <div class="chart-wrap">
+                    <canvas id="benchmark-chart"></canvas>
+                    <div class="chart-tooltip" id="benchmark-tooltip"></div>
+                </div>
+                <div class="chart-caption" id="benchmark-caption">Source: results/all_model_performance.csv (Macro/Weighted Avg rows)</div>
+            </div>
+        </div>
+    </section>
+
+    <section id="error-analysis" class="section container">
+        <h2>Error Analysis</h2>
+        <div class="card">
+            <p>Load the CSVs generated by <span class="highlight">inspect_misclassifications.py</span> to explore mistakes, confidence bins, and drift signals.</p>
+            <div class="pill-container" style="margin-top: 1rem;">
+                <span class="pill">results/error_summary.csv</span>
+                <span class="pill">results/confusion_pairs.csv</span>
+                <span class="pill">results/error_by_length.csv</span>
+                <span class="pill">results/error_by_signal.csv</span>
+                <span class="pill">results/error_by_confidence.csv</span>
+                <span class="pill">results/misclassified_samples.csv</span>
+            </div>
+            <p class="subtitle" style="margin-top: 1.5rem;">
+                If you open this file directly, browser security may block CSV loading. Run
+                <span class="highlight">python -m http.server</span> and open <span class="highlight">http://localhost:8000/site.html</span>.
+            </p>
+        </div>
+
+        <div class="stats-grid" id="error-summary"></div>
+
+        <div class="grid grid-1" style="margin-top: 2rem;">
+            <div class="card">
+                <h3>Confusion Pairs</h3>
+                <div class="table-wrapper" id="confusion-table"></div>
+            </div>
+            <div class="card">
+                <h3>Error Rate by Length</h3>
+                <div class="table-wrapper" id="length-table"></div>
+            </div>
+            <div class="card">
+                <h3>Error Rate by Signal</h3>
+                <div class="table-wrapper" id="signal-table"></div>
+            </div>
+            <div class="card">
+                <h3>Confidence Bins</h3>
+                <div class="table-wrapper" id="confidence-table"></div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem;">
+            <h3>Misclassified Samples</h3>
+            <div class="controls">
+                <label for="pair-select">Confusion pair</label>
+                <select id="pair-select"></select>
+                <label for="row-limit">Rows</label>
+                <input id="row-limit" type="number" value="20" min="10" max="200" />
+                <button id="pair-load">Load</button>
+            </div>
+            <div class="table-wrapper scrollable" id="misclass-table"></div>
+        </div>
+    </section>
+
+    <section id="getting-started" class="section container">
+        <h2>Getting Started</h2>
+        
+        <div class="card" style="margin-bottom: 2rem;">
+            <h3>Installation & Setup</h3>
+            <div class="code-block">
+<code><span class="comment"># Clone the repository</span>
+git clone https://github.com/yourusername/crypto-transformer-benchmarking.git
+cd crypto-transformer-benchmarking
+
+<span class="comment"># Install dependencies</span>
+pip install -r requirements.txt</code>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 2rem;">
+            <h3>Data Preparation</h3>
+            <div class="code-block">
+<code><span class="comment"># Prepare train/valid splits from the raw bitcoin dataset</span>
+<span class="command">python</span> experiments/prepare_bitcoin_sentiments.py \
+    --input bitcoin_sentiments_21_24.csv \
+    --output_dir dataset \
+    --neutral_band 0.05 \
+    --train_size 0.8</code>
+            </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 2rem;">
+            <h3>Training</h3>
+            <div class="code-block">
+<code><span class="comment"># Train ModernBERT (Flash Attention enabled on GPU)</span>
+<span class="command">python</span> experiments/train_modernbert.py \
+    --train_path dataset/bitcoin_sent_train.csv \
+    --valid_path dataset/bitcoin_sent_valid.csv</code>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Benchmarking</h3>
+            <div class="code-block">
+<code><span class="comment"># Benchmark all models on the validation set</span>
+<span class="command">python</span> experiments/benchmark.py \
+    --valid_path dataset/bitcoin_sent_valid.csv \
+    --models modernbert cryptobert finbert deberta-v3
+
+<span class="comment"># Generate accuracy vs latency plots</span>
+<span class="command">python</span> performance_plots.py</code>
+            </div>
+        </div>
+    </section>
+
+    <section class="section container">
+        <h2>XAI Capabilities</h2>
+        <div class="grid grid-2">
+            <div class="card">
+                <h3>Embedding Access</h3>
+                <p>Direct access to <span class="highlight">embedding_layer</span> for Captum Integrated Gradients, enabling token-level attribution analysis.</p>
+            </div>
+            <div class="card">
+                <h3>Attention Inspection</h3>
+                <p>Exposed <span class="highlight">attention_modules</span> allow for attention head visualization and analysis across all layers.</p>
+            </div>
+            <div class="card">
+                <h3>Differentiable Forward</h3>
+                <p>The <span class="highlight">forward_from_embeds()</span> method supports attribution methods requiring differentiable inputs from embedding space.</p>
+            </div>
+            <div class="card">
+                <h3>Gradient Flow</h3>
+                <p>Full gradient propagation through the model enables advanced explainability techniques and fine-grained analysis.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="section container">
+        <h2>Next Steps</h2>
+        <div class="grid grid-3">
+            <div class="card">
+                <h3>⚙️ Optimize</h3>
+                <p>Validate CUDA is enabled for faster training on GPU hardware. Consider mixed precision training for improved performance.</p>
+            </div>
+            <div class="card">
+                <h3>🧪 Expand Testing</h3>
+                <p>Add slang-heavy dataset for robustness testing on informal language and crypto-specific terminology.</p>
+            </div>
+            <div class="card">
+                <h3>📊 Visualize</h3>
+                <p>Integrate Captum IG to generate token-level attribution heatmaps and attention visualizations.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="container">
+        <p>ModernBERT & Transformer Benchmarking Suite © 2026</p>
+        <p style="margin-top: 0.5rem; font-size: 0.85rem;">Built with precision for crypto sentiment analysis and explainable AI</p>
+    </footer>
+
+    <script>
+        const prettyKey = {
+            total_samples: "Total samples",
+            total_errors: "Total errors",
+            error_rate: "Error rate",
+            accuracy: "Accuracy",
+            avg_confidence: "Avg confidence",
+            avg_confidence_errors: "Avg confidence (errors)",
+        };
+
+        function parseCsv(text) {
+            const rows = [];
+            let current = "";
+            let row = [];
+            let inQuotes = false;
+            for (let i = 0; i < text.length; i++) {
+                const ch = text[i];
+                if (inQuotes) {
+                    if (ch === '"' && text[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else if (ch === '"') {
+                        inQuotes = false;
+                    } else {
+                        current += ch;
+                    }
+                } else {
+                    if (ch === '"') {
+                        inQuotes = true;
+                    } else if (ch === ",") {
+                        row.push(current);
+                        current = "";
+                    } else if (ch === "\n") {
+                        row.push(current);
+                        rows.push(row);
+                        row = [];
+                        current = "";
+                    } else if (ch !== "\r") {
+                        current += ch;
+                    }
+                }
+            }
+            if (current.length || row.length) {
+                row.push(current);
+                rows.push(row);
+            }
+            const headers = rows.shift() || [];
+            return rows.map((r) => {
+                const obj = {};
+                headers.forEach((h, idx) => {
+                    obj[h] = r[idx] ?? "";
+                });
+                return obj;
+            });
+        }
+
+        async function loadCsv(path) {
+            const res = await fetch(path);
+            if (!res.ok) {
+                throw new Error(`Failed to load ${path}`);
+            }
+            const text = await res.text();
+            return parseCsv(text);
+        }
+
+        function renderTable(targetId, rows, options = {}) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = "";
+            if (!rows || rows.length === 0) {
+                container.innerHTML = "<div class='notice'>No data loaded.</div>";
+                return;
+            }
+            const columns = options.columns && options.columns.length ? options.columns : Object.keys(rows[0]);
+            const table = document.createElement("table");
+            table.className = "data-table";
+            const thead = document.createElement("thead");
+            const headRow = document.createElement("tr");
+            columns.forEach((h) => {
+                const th = document.createElement("th");
+                th.textContent = h;
+                th.dataset.col = h;
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+            const tbody = document.createElement("tbody");
+            rows.slice(0, options.maxRows || rows.length).forEach((row) => {
+                const tr = document.createElement("tr");
+                columns.forEach((h) => {
+                    const td = document.createElement("td");
+                    const value = row[h];
+                    if (value === undefined || value === null || value === "") {
+                        td.textContent = "-";
+                    } else if (options.format && options.format[h]) {
+                        td.textContent = options.format[h](value);
+                    } else if (["error_rate", "accuracy", "pred_confidence"].includes(h)) {
+                        const num = Number(value);
+                        td.textContent = Number.isFinite(num) ? num.toFixed(4) : value;
+                    } else {
+                        td.textContent = value;
+                    }
+                    td.dataset.col = h;
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+        }
+
+        function renderSummary(summaryRows) {
+            const target = document.getElementById("error-summary");
+            target.innerHTML = "";
+            summaryRows.forEach((row) => {
+                const key = row.key;
+                const value = row.value;
+                const card = document.createElement("div");
+                card.className = "stat-card";
+                const val = document.createElement("div");
+                val.className = "stat-value";
+                if (String(value).includes(".")) {
+                    val.textContent = Number(value).toFixed(4);
+                } else {
+                    val.textContent = value;
+                }
+                const label = document.createElement("div");
+                label.className = "stat-label";
+                label.textContent = prettyKey[key] || key;
+                card.appendChild(val);
+                card.appendChild(label);
+                target.appendChild(card);
+            });
+        }
+
+        async function loadErrorAnalysis() {
+            try {
+                const summary = await loadCsv("results/error_summary.csv");
+                renderSummary(summary);
+                let confusion = await loadCsv("results/confusion_pairs.csv");
+                confusion = confusion.filter((row) => String(row.is_error) === "1");
+                renderTable("confusion-table", confusion, {
+                    maxRows: 9,
+                    columns: ["true_label_str", "pred_label_str", "count"],
+                });
+                const lengthRows = await loadCsv("results/error_by_length.csv");
+                renderTable("length-table", lengthRows, {
+                    columns: ["length_bucket", "total", "errors", "error_rate"],
+                });
+                let signalRows = await loadCsv("results/error_by_signal.csv");
+                signalRows = signalRows.map((row) => ({
+                    ...row,
+                    value: row.value === "1" ? "yes" : "no",
+                }));
+                renderTable("signal-table", signalRows, {
+                    columns: ["signal", "value", "total", "errors", "error_rate"],
+                });
+                const confRows = await loadCsv("results/error_by_confidence.csv");
+                renderTable("confidence-table", confRows, {
+                    columns: ["confidence_bucket", "total", "errors", "error_rate", "accuracy"],
+                });
+                const misclassRows = await loadCsv("results/misclassified_samples.csv");
+                renderTable("misclass-table", misclassRows, {
+                    maxRows: 20,
+                    columns: ["text", "true_label_str", "pred_label_str", "pred_confidence", "topk_probs"],
+                });
+                const indexRows = await loadCsv("results/misclassified_pairs/index.csv");
+                const select = document.getElementById("pair-select");
+                select.innerHTML = "";
+                indexRows.forEach((row) => {
+                    const opt = document.createElement("option");
+                    opt.value = row.csv_path;
+                    opt.textContent = `${row.true_label_str} → ${row.pred_label_str} (${row.count})`;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                document.getElementById("confusion-table").innerHTML =
+                    "<div class='notice'>Unable to load CSVs. Run the analysis script and serve this page via a local server.</div>";
+            }
+        }
+
+        let benchmarkBars = [];
+        let benchmarkData = [];
+
+        function drawBarChart(canvas, labels, values, options = {}) {
+            const ctx = canvas.getContext("2d");
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            canvas.width = width * window.devicePixelRatio;
+            canvas.height = height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            ctx.clearRect(0, 0, width, height);
+
+            const padding = { top: 20, right: 24, bottom: 40, left: 48 };
+            const chartWidth = width - padding.left - padding.right;
+            const chartHeight = height - padding.top - padding.bottom;
+            const maxVal = Math.max(...values, 1);
+            const barWidth = chartWidth / values.length * 0.7;
+            const gap = chartWidth / values.length * 0.3;
+
+            ctx.strokeStyle = "rgba(255,255,255,0.12)";
+            ctx.fillStyle = "rgba(255,255,255,0.6)";
+            ctx.font = "12px 'Segoe UI', sans-serif";
+
+            for (let i = 0; i <= 4; i++) {
+                const y = padding.top + (chartHeight / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y);
+                ctx.lineTo(width - padding.right, y);
+                ctx.stroke();
+                const label = (maxVal * (1 - i / 4)).toFixed(2);
+                ctx.fillText(label, 8, y + 4);
+            }
+
+            benchmarkBars = [];
+            values.forEach((val, idx) => {
+                const x = padding.left + idx * (barWidth + gap) + gap / 2;
+                const barHeight = (val / maxVal) * chartHeight;
+                const y = padding.top + (chartHeight - barHeight);
+                ctx.fillStyle = "rgba(129, 140, 248, 0.75)";
+                ctx.fillRect(x, y, barWidth, barHeight);
+                ctx.fillStyle = "#e4e4e7";
+                ctx.fillText(labels[idx], x, height - 14);
+                if (options.showValues) {
+                    ctx.fillText(val.toFixed(3), x, y - 6);
+                }
+                benchmarkBars.push({
+                    label: labels[idx],
+                    value: val,
+                    x,
+                    y,
+                    width: barWidth,
+                    height: barHeight,
+                });
+            });
+        }
+
+        function handleBenchmarkHover(event) {
+            const canvas = event.currentTarget;
+            const tooltip = document.getElementById("benchmark-tooltip");
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const bar = benchmarkBars.find(
+                (b) => x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height
+            );
+            if (!bar) {
+                tooltip.style.opacity = 0;
+                return;
+            }
+            tooltip.style.left = `${bar.x + bar.width / 2}px`;
+            tooltip.style.top = `${bar.y}px`;
+            tooltip.textContent = `${bar.label}: ${bar.value.toFixed(4)}`;
+            tooltip.style.opacity = 1;
+        }
+
+        function renderBenchmarkChart(metricKey, sortOrder) {
+            const rows = benchmarkData
+                .map((row) => ({
+                    model: row.model,
+                    value: row.metrics[metricKey],
+                }))
+                .filter((row) => Number.isFinite(row.value));
+            if (!rows.length) {
+                return;
+            }
+            rows.sort((a, b) => (sortOrder === "asc" ? a.value - b.value : b.value - a.value));
+            const labels = rows.map((r) => r.model);
+            const values = rows.map((r) => r.value);
+            const canvas = document.getElementById("benchmark-chart");
+            drawBarChart(canvas, labels, values, { showValues: true });
+        }
+
+        function setupBenchmarkControls(metrics) {
+            const metricSelect = document.getElementById("metric-select");
+            metricSelect.innerHTML = "";
+            metrics.forEach((metric) => {
+                const opt = document.createElement("option");
+                opt.value = metric.key;
+                opt.textContent = metric.label;
+                metricSelect.appendChild(opt);
+            });
+            metricSelect.value = metrics[0]?.key || "";
+            const sortSelect = document.getElementById("sort-select");
+            const redraw = () => renderBenchmarkChart(metricSelect.value, sortSelect.value);
+            metricSelect.addEventListener("change", redraw);
+            sortSelect.addEventListener("change", redraw);
+            redraw();
+        }
+
+        function normalizeModelName(name) {
+            return name.replace(/\s+/g, " ").trim();
+        }
+
+        function parseBenchmarkResults(rows) {
+            return rows
+                .map((row) => ({
+                    model: normalizeModelName(row.model || row.Model || ""),
+                    metrics: {
+                        accuracy: Number(row.accuracy),
+                        precision_macro: Number(row.precision_macro),
+                        precision_weighted: Number(row.precision_weighted),
+                        recall_macro: Number(row.recall_macro),
+                        recall_weighted: Number(row.recall_weighted),
+                        f1_macro: Number(row.f1_macro),
+                        f1_weighted: Number(row.f1_weighted),
+                        latency_ms_per_tweet: Number(row.latency_ms_per_tweet),
+                        slang_accuracy: Number(row.slang_accuracy),
+                    },
+                }))
+                .filter((row) => row.model);
+        }
+
+        function parseAllModelPerformance(rows) {
+            let currentModel = "";
+            const cache = {};
+            rows.forEach((row) => {
+                const model = row.Model && row.Model.trim() ? row.Model.trim() : currentModel;
+                if (model) {
+                    currentModel = model;
+                }
+                const target = normalizeModelName(currentModel);
+                if (!cache[target]) {
+                    cache[target] = { model: target, macro: {}, weighted: {} };
+                }
+                const cls = row.Class ? row.Class.trim() : "";
+                if (cls === "Macro Avg") {
+                    cache[target].macro = {
+                        precision_macro: Number(row.Precision),
+                        recall_macro: Number(row.Recall),
+                        f1_macro: Number(row["F1-Score"]),
+                    };
+                } else if (cls === "Weighted Avg") {
+                    cache[target].weighted = {
+                        precision_weighted: Number(row.Precision),
+                        recall_weighted: Number(row.Recall),
+                        f1_weighted: Number(row["F1-Score"]),
+                    };
+                }
+            });
+            return Object.values(cache).map((item) => ({
+                model: item.model,
+                metrics: { ...item.macro, ...item.weighted },
+            }));
+        }
+
+        async function loadBenchmarkChart() {
+            try {
+                const benchmarkRows = await loadCsv("benchmark_results.csv");
+                const parsedBenchmark = parseBenchmarkResults(benchmarkRows);
+                const caption = document.getElementById("benchmark-caption");
+                let metrics = [];
+                if (parsedBenchmark.length) {
+                    benchmarkData = parsedBenchmark;
+                    caption.textContent = "Source: benchmark_results.csv";
+                    metrics = [
+                        { key: "f1_macro", label: "F1 Macro" },
+                        { key: "accuracy", label: "Accuracy" },
+                        { key: "precision_macro", label: "Precision Macro" },
+                        { key: "recall_macro", label: "Recall Macro" },
+                        { key: "latency_ms_per_tweet", label: "Latency (ms)" },
+                        { key: "slang_accuracy", label: "Slang Accuracy" },
+                    ];
+                } else {
+                    const perfRows = await loadCsv("results/all_model_performance.csv");
+                    benchmarkData = parseAllModelPerformance(perfRows);
+                    caption.textContent = "Source: results/all_model_performance.csv (Macro/Weighted Avg rows)";
+                    metrics = [
+                        { key: "f1_macro", label: "F1 Macro" },
+                        { key: "precision_macro", label: "Precision Macro" },
+                        { key: "recall_macro", label: "Recall Macro" },
+                        { key: "f1_weighted", label: "F1 Weighted" },
+                    ];
+                }
+                setupBenchmarkControls(metrics);
+                const canvas = document.getElementById("benchmark-chart");
+                canvas.addEventListener("mousemove", handleBenchmarkHover);
+                canvas.addEventListener("mouseleave", () => {
+                    document.getElementById("benchmark-tooltip").style.opacity = 0;
+                });
+                window.addEventListener("resize", () => {
+                    const metricSelect = document.getElementById("metric-select");
+                    const sortSelect = document.getElementById("sort-select");
+                    renderBenchmarkChart(metricSelect.value, sortSelect.value);
+                });
+            } catch (err) {
+                const chart = document.getElementById("benchmark-chart");
+                const parent = chart.parentElement;
+                chart.remove();
+                const notice = document.createElement("div");
+                notice.className = "notice";
+                notice.textContent = "Unable to load benchmark chart. Serve site.html via a local server.";
+                parent.appendChild(notice);
+            }
+        }
+
+        async function loadPairSamples() {
+            const select = document.getElementById("pair-select");
+            const limit = Number(document.getElementById("row-limit").value || 50);
+            if (!select.value) {
+                return;
+            }
+            const rows = await loadCsv(`results/${select.value}`);
+            renderTable("misclass-table", rows, {
+                maxRows: limit,
+                columns: ["text", "true_label_str", "pred_label_str", "pred_confidence", "topk_probs"],
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadErrorAnalysis();
+            loadBenchmarkChart();
+            document.getElementById("pair-load").addEventListener("click", loadPairSamples);
+        });
+    </script>
+</body>
+</html>
