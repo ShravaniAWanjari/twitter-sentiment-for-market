@@ -43,6 +43,23 @@ body {
   gap: 1rem;
 }
 
+.btn-group {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn.danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  transform: translateY(-1px);
+}
+
 .pill {
   padding: 0.35rem 0.85rem;
   border-radius: 999px;
@@ -169,12 +186,20 @@ body {
   box-shadow: none;
 }
 
-.logs .log-box {
+.logs .log-box,
+.log-box.mini {
   max-height: 240px;
   overflow: auto;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.75rem;
   color: #c7cbff;
+}
+
+.log-box.mini {
+  max-height: 120px;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(99, 102, 241, 0.15);
 }
 
 .tabs {
@@ -254,4 +279,24 @@ img {
 
 .muted {
   color: #a6abdb;
+}
+
+.artifacts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.model-artifacts-section {
+  padding: 1rem 0;
+}
+
+.model-heading {
+  margin-bottom: 2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid rgba(99, 102, 241, 0.3);
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
 }

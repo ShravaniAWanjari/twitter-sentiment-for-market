@@ -302,6 +302,8 @@ def main() -> None:
 
     trainer.train()
     trainer.save_model(str(config.output_dir / "final_model"))
+    if hasattr(model.model, "config") and model.model.config is not None:
+        model.model.config.save_pretrained(str(config.output_dir / "final_model"))
     model.tokenizer.save_pretrained(str(config.output_dir / "final_model"))
 
 

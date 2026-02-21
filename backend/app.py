@@ -58,6 +58,15 @@ def start_training(payload: Dict[str, List[str]]) -> Dict[str, str]:
     return {"status": "started"}
 
 
+@app.post("/api/clear-session")
+def clear_session() -> Dict[str, str]:
+    try:
+        job_manager.clear_session()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "cleared"}
+
+
 @app.get("/api/status")
 def get_status() -> Dict[str, object]:
     return job_manager.get_state()

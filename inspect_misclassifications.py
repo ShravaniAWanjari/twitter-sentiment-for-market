@@ -4,9 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import torch
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
 from core.preprocessing import LABEL_ID2STR, align_label, preprocess_text
+from model_factory import load_model, available_models
 
 
 URL_PATTERN = re.compile(r"http[s]?://\\S+")
@@ -45,6 +44,7 @@ def classify_length(word_count):
 
 def main():
     parser = argparse.ArgumentParser(description="Inspect misclassified samples.")
+    parser.add_argument("--model", type=str, default="modernbert", help=f"Available: {available_models()}")
     parser.add_argument("--model_dir", type=Path, default=Path("experiments/modernbert_runs/final_model"))
     parser.add_argument("--data_path", type=Path, default=Path("dataset/bitcoin_sent_valid.csv"))
     parser.add_argument("--text_col", type=str, default="text")
@@ -56,15 +56,23 @@ def main():
     parser.add_argument("--output_dir", type=Path, default=Path("results"))
     args = parser.parse_args()
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-
     df = pd.read_csv(args.data_path)
     texts = df[args.text_col].astype(str).tolist()
     raw_labels = df[args.label_col].tolist()
     labels = [align_label(lbl) for lbl in raw_labels]
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_dir, use_fast=True)
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    # Use load_model for consistency and architecture handling
+    model_wrapper = load_model(
+        args.model, 
+        model_name=str(args.model_dir),
+        device=device,
+        max_length=args.max_length,
+        trust_remote_code=True
+    )
+    tokenizer = model_wrapper.tokenizer
+    model = model_wrapper.model
     model.eval()
 
     preds = []
@@ -78,6 +86,7 @@ def main():
                 max_length=args.max_length,
                 return_tensors="pt",
             )
+            enc = {k: v.to(device) for k, v in enc.items()}
             logits = model(**enc).logits
             scores = torch.softmax(logits, dim=-1)
             preds.extend(scores.argmax(dim=-1).cpu().tolist())

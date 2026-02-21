@@ -188,6 +188,15 @@ class CryptoTransformerBase(nn.Module):
         inputs_embeds: Optional[torch.Tensor] = None,
         **kwargs: Any,
     ) -> Any:
+        # Defensively handle token_type_ids: drop if model doesn't support them
+        if token_type_ids is not None:
+            # Check if 'token_type_ids' is in the model's forward signature or if it's BERT-like.
+            # Some models like ModernBERT/RoBERTa crash if passed.
+            import inspect
+            sig = inspect.signature(self.model.forward).parameters
+            if "token_type_ids" not in sig:
+                token_type_ids = None
+
         outputs = self.model(
             input_ids=input_ids if inputs_embeds is None else None,
             attention_mask=attention_mask,

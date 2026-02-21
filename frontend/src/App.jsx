@@ -10,8 +10,9 @@ async function fetchJson(path, options) {
 }
 
 function formatNum(value, digits = 4) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) return "-";
+  if (value === null || value === undefined || value === "") return "-";
   const num = Number(value);
+  if (Number.isNaN(num)) return value;
   return Number.isInteger(num) ? `${num}` : num.toFixed(digits);
 }
 
@@ -44,9 +45,18 @@ export default function App() {
     refreshStatus();
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   const refreshStatus = async () => {
-    const data = await fetchJson("/api/status");
-    setStatus(data);
+    setRefreshing(true);
+    try {
+      const data = await fetchJson("/api/status");
+      setStatus(data);
+    } catch (err) {
+      console.error("Refresh failed:", err);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -92,8 +102,42 @@ export default function App() {
     refreshStatus();
   };
 
-  const progress = status?.progress ?? 0;
-  const progressPercent = Math.round(progress * 100);
+  const total_steps = status?.total_steps ?? 0;
+  const current_step = status?.current_step ?? 0;
+  const intra = status?.intra_step_progress ?? 0;
+
+  const progressPercent = total_steps > 0
+    ? Math.round(((current_step + intra) / total_steps) * 100)
+    : 0;
+
+  const groupedImages = useMemo(() => {
+    const groups = {};
+    images.forEach((img) => {
+      // Expecting format like "modelname_rest_of_file.png"
+      const name = img.split("_")[0];
+      if (!groups[name]) groups[name] = [];
+      groups[name].push(img);
+    });
+    return groups;
+  }, [images]);
+
+  const clearSession = async () => {
+    if (!window.confirm("Are you sure you want to clear all training results and artifacts?")) return;
+    try {
+      await fetchJson("/api/clear-session", { method: "POST" });
+      setStatus(null);
+      setBenchmark([]);
+      setErrorSummary([]);
+      setErrorLength([]);
+      setErrorSignal([]);
+      setErrorConfidence([]);
+      setImages([]);
+      setActiveTab("setup");
+      refreshStatus();
+    } catch (err) {
+      alert("Failed to clear session: " + err.message);
+    }
+  };
 
   return (
     <div className="app">
@@ -109,20 +153,36 @@ export default function App() {
           <div className={`pill ${status?.status || "idle"}`}>
             {status?.status || "idle"}
           </div>
-          <button className="btn" onClick={refreshStatus}>
-            Refresh
-          </button>
+          <div className="btn-group">
+            <button className="btn" onClick={refreshStatus} disabled={refreshing}>
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </button>
+            <button className="btn danger" onClick={clearSession} disabled={status?.status === "running"}>
+              Clear Session
+            </button>
+          </div>
         </div>
       </header>
 
-      {status && status.status === "running" && (
+      {status && (status.status === "running" || status.status === "failed") && (
         <section className="progress-card">
           <div className="progress-inner">
-            <span>Training progress</span>
+            <span>
+              {status?.current_model?.startsWith("Analyzing")
+                ? status.current_model
+                : status?.current_model
+                  ? `Training ${status.current_model}...`
+                  : "Training progress"}
+            </span>
             <strong>{progressPercent}% complete</strong>
           </div>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="log-box mini">
+            {(status?.logs || []).slice(-100).map((line, idx) => (
+              <div key={idx}>{line}</div>
+            ))}
           </div>
         </section>
       )}
@@ -179,15 +239,6 @@ export default function App() {
             Run Training + Benchmark
           </button>
           {status?.status === "failed" && <p className="error">Job failed: {status.error}</p>}
-        </div>
-      </section>
-
-      <section className="card logs">
-        <h2>Job Logs</h2>
-        <div className="log-box">
-          {(status?.logs || []).slice(-200).map((line, idx) => (
-            <div key={idx}>{line}</div>
-          ))}
         </div>
       </section>
 
@@ -349,14 +400,21 @@ export default function App() {
       )}
 
       {activeTab === "artifacts" && canShowTabs && (
-        <section className="grid two">
-          {images.map((img) => (
-            <div className="card" key={img}>
-              <h3>{img}</h3>
-              <img src={`/api/images/${img}`} alt={img} />
-            </div>
+        <div className="artifacts-container">
+          {Object.entries(groupedImages).map(([model, modelImages]) => (
+            <section key={model} className="model-artifacts-section">
+              <h2 className="model-heading">{model.toUpperCase()}</h2>
+              <div className="grid two">
+                {modelImages.map((img) => (
+                  <div className="card" key={img}>
+                    <h3>{img.split("_").slice(1).join(" ").replace(".png", "")}</h3>
+                    <img src={`/api/images/${img}`} alt={img} />
+                  </div>
+                ))}
+              </div>
+            </section>
           ))}
-        </section>
+        </div>
       )}
     </div>
   );
