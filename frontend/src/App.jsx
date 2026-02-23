@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import BacktestView from "./components/BacktestView";
+import AnalyzeView from "./components/AnalyzeView";
 
 async function fetchJson(path, options) {
   const res = await fetch(path, options);
@@ -47,21 +49,21 @@ export default function App() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const refreshStatus = async () => {
-    setRefreshing(true);
+  const refreshStatus = async (manual = false) => {
+    if (manual) setRefreshing(true);
     try {
       const data = await fetchJson("/api/status");
       setStatus(data);
     } catch (err) {
       console.error("Refresh failed:", err);
     } finally {
-      setRefreshing(false);
+      if (manual) setRefreshing(false);
     }
   };
 
   useEffect(() => {
     if (!status || status.status !== "running") return;
-    const timer = setInterval(refreshStatus, 2000);
+    const timer = setInterval(() => refreshStatus(false), 3000);
     return () => clearInterval(timer);
   }, [status]);
 
@@ -154,7 +156,7 @@ export default function App() {
             {status?.status || "idle"}
           </div>
           <div className="btn-group">
-            <button className="btn" onClick={refreshStatus} disabled={refreshing}>
+            <button className="btn refresh-btn" onClick={() => refreshStatus(true)} disabled={refreshing}>
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
             <button className="btn danger" onClick={clearSession} disabled={status?.status === "running"}>
@@ -242,25 +244,30 @@ export default function App() {
         </div>
       </section>
 
-      <nav className={`tabs ${canShowTabs ? "" : "locked"}`}>
+      <nav className="tabs">
         {[
-          { id: "overview", label: "Overview" },
-          { id: "benchmarks", label: "Benchmarks" },
-          { id: "errors", label: "Error Analysis" },
-          { id: "artifacts", label: "Artifacts" },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            className={activeTab === tab.id ? "active" : ""}
-            onClick={() => canShowTabs && setActiveTab(tab.id)}
-            disabled={!canShowTabs}
-          >
-            {tab.label}
-          </button>
-        ))}
+          { id: "overview", label: "Overview", requiresTrain: true },
+          { id: "benchmarks", label: "Benchmarks", requiresTrain: true },
+          { id: "errors", label: "Error Analysis", requiresTrain: true },
+          { id: "backtest", label: "Backtest", requiresTrain: true },
+          { id: "analyze", label: "Analyze Headlines", requiresTrain: true },
+          { id: "artifacts", label: "Artifacts", requiresTrain: true },
+        ].map((tab) => {
+          const locked = tab.requiresTrain && !canShowTabs;
+          return (
+            <button
+              key={tab.id}
+              className={`${activeTab === tab.id ? "active" : ""} ${locked ? "tab-locked" : ""}`}
+              onClick={() => !locked && setActiveTab(tab.id)}
+              disabled={locked}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </nav>
 
-      {activeTab === "overview" && canShowTabs && (
+      {activeTab === "overview" && (canShowTabs || false) && (
         <section className="grid three">
           <div className="card">
             <h3>Leaderboard (Macro F1)</h3>
@@ -397,6 +404,14 @@ export default function App() {
             </table>
           </div>
         </section>
+      )}
+
+      {activeTab === "backtest" && (
+        <BacktestView models={config?.models || DEFAULT_MODELS} />
+      )}
+
+      {activeTab === "analyze" && (
+        <AnalyzeView models={config?.models || DEFAULT_MODELS} />
       )}
 
       {activeTab === "artifacts" && canShowTabs && (
