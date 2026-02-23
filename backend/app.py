@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Any
 
 import sys
 import logging
@@ -15,10 +15,21 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+import os
+
+# Ensure backend directory is in path for imports
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 try:
-    from .job_manager import JobManager
+    from backend.job_manager import JobManager
+    from backend.backtest_engine import BacktestEngine
+    from backend.analysis_engine import AnalysisEngine
 except ImportError:
     from job_manager import JobManager
+    from backtest_engine import BacktestEngine
+    from analysis_engine import AnalysisEngine
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = REPO_ROOT / "results"
@@ -33,6 +44,8 @@ app.add_middleware(
 )
 
 job_manager = JobManager(REPO_ROOT)
+backtest_engine = BacktestEngine(REPO_ROOT)
+analysis_engine = AnalysisEngine(REPO_ROOT)
 
 
 @app.get("/api/config")
@@ -108,3 +121,54 @@ def get_image(name: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Image not found.")
     return FileResponse(path)
+
+
+@app.post("/api/backtest")
+def run_backtest(payload: Dict[str, Any]):
+    return backtest_engine.run_backtest(
+        model_name=payload.get("model", "modernbert"),
+        strategy_name=payload.get("strategy", "Momentum"),
+        sentiment_threshold=payload.get("sentiment_threshold", payload.get("threshold", 0.5))
+    )
+
+
+@app.get("/api/backtest/latest")
+def get_latest_backtest():
+    run = backtest_engine.get_latest_run()
+    if not run:
+        raise HTTPException(status_code=404, detail="No backtest run found.")
+    return run
+
+
+@app.post("/api/analyze")
+def analyze_headlines(payload: Dict[str, Any]):
+    headlines = payload.get("headlines")
+    if not headlines:
+        # Fallback to demo headlines
+        headlines = [
+            "Bitcoin breaks $100k as institutional adoption surges",
+            "SEC delays decision on spot Ethereum ETF, market nervous",
+            "China declares all crypto transactions illegal in major crackdown"
+        ]
+    return analysis_engine.analyze_headlines(
+        model_name=payload.get("model", "modernbert"),
+        headlines=headlines
+    )
+
+
+@app.post("/api/chat")
+def grounded_chat(payload: Dict[str, Any]):
+    run = backtest_engine.get_latest_run()
+    if not run:
+        return {"response": "I don't have any backtest data yet. Please run a backtest first."}
+    response = analysis_engine.grounded_chat(run, payload.get("query", ""))
+    return {"response": response}
+
+
+@app.get("/api/pdf")
+def download_pdf():
+    run = backtest_engine.get_latest_run()
+    if not run:
+        raise HTTPException(status_code=404, detail="No run data to export.")
+    pdf_path = analysis_engine.generate_pdf_report(run)
+    return FileResponse(pdf_path, filename="Analysis_Report.pdf")
