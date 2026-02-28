@@ -46,45 +46,58 @@ class DataLoader:
 
     def download_and_process_day(self, symbol: str, date: str) -> Optional[Path]:
         """
-        Download orderbook snapshot for a single day, convert to flat format, and save.
+        Download orderbook snapshot for a single day (if missing), convert to flat format, and save.
         """
         filename = f"{symbol}_{date}.csv"
         final_path = self.data_dir / filename
+        temp_gz = self.data_dir / f"temp_{date}.csv.gz"
         
         if final_path.exists():
             logger.info(f"Data for {date} already exists at {final_path}")
             return final_path
 
-        payload = {
-            "exchange_name": "binance",
-            "instrument_type": "spot",
-            "data_type": "book_snapshot_5",
-            "symbol": symbol,
-            "from_date": date,
-            "to_date": date,
-        }
+        if not temp_gz.exists():
+            payload = {
+                "exchange_name": "binance",
+                "instrument_type": "spot",
+                "data_type": "book_snapshot_5",
+                "symbol": symbol,
+                "from_date": date,
+                "to_date": date,
+            }
 
-        try:
-            logger.info(f"Downloading data for {date}...")
-            response = requests.post(
-                f"{self.BASE_URL}{self.ENDPOINT_PATH}",
-                json=payload,
-                stream=True,
-                timeout=self.REQUEST_TIMEOUT
-            )
+            try:
+                logger.info(f"Downloading data for {date}...")
+                response = requests.post(
+                    f"{self.BASE_URL}{self.ENDPOINT_PATH}",
+                    json=payload,
+                    stream=True,
+                    timeout=self.REQUEST_TIMEOUT
+                )
 
-            if response.status_code != 200:
-                logger.error(f"Failed to download data for {date}: {response.status_code}")
+                if response.status_code != 200:
+                    logger.error(f"Failed to download data for {date}: {response.status_code}")
+                    return None
+
+                with open(temp_gz, "wb") as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            except Exception as e:
+                logger.error(f"Error downloading {date}: {e}")
                 return None
 
-            temp_gz = self.data_dir / f"temp_{date}.csv.gz"
-            with open(temp_gz, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            # Process and convert
-            logger.info(f"Processing data for {date}...")
-            df = pd.read_csv(temp_gz, compression='gzip')
+        # Process and convert
+        try:
+            logger.info(f"Processing data for {date} from {temp_gz}...")
+            
+            # Use 'infer' for compression which handles most cases, 
+            # but if it fails (like these files that are misnamed), retry without.
+            try:
+                df = pd.read_csv(temp_gz, compression='gzip', low_memory=False)
+            except Exception:
+                logger.info(f"Gzip read failed for {temp_gz}, retrying as plain CSV.")
+                # We must set compression=None or it will try to infer from .gz extension again
+                df = pd.read_csv(temp_gz, compression=None, low_memory=False)
             
             required_cols = ['timestamp', 'bids[0].price', 'asks[0].price']
             if all(col in df.columns for col in required_cols):
@@ -99,7 +112,7 @@ class DataLoader:
                 
                 # Save flat
                 df.to_csv(final_path, index=False)
-                temp_gz.unlink() # Cleanup
+                # Keep temp_gz for now per user requirements to 'use tick data shared'
                 logger.info(f"Successfully saved {len(df)} rows to {final_path}")
                 return final_path
             else:
@@ -124,8 +137,8 @@ class DataLoader:
             return pd.DataFrame()
             
         combined = pd.concat(dfs, ignore_index=True)
-        # Convert timestamp to datetime
-        combined['Date'] = pd.to_datetime(combined['timestamp'], unit='ms')
+        # Convert timestamp to datetime - data is in microseconds (16 digits)
+        combined['Date'] = pd.to_datetime(combined['timestamp'], unit='us')
         # Use mid-price for Close compatibility
         combined['Close'] = (combined['bids[0].price'] + combined['asks[0].price']) / 2
         return combined.sort_values('Date')
