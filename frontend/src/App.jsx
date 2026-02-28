@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import BacktestView from "./components/BacktestView";
 import AnalyzeView from "./components/AnalyzeView";
+import MarketGPTView from "./components/MarketGPTView";
+import ExplainabilityCard from "./components/ExplainabilityCard";
 
 async function fetchJson(path, options) {
   const res = await fetch(path, options);
@@ -23,13 +25,38 @@ export default function App() {
   const [selectedModels, setSelectedModels] = useState([]);
   const [configFailed, setConfigFailed] = useState(false);
   const [status, setStatus] = useState(null);
+  const [trainedModels, setTrainedModels] = useState([]);
   const [benchmark, setBenchmark] = useState([]);
-  const [errorSummary, setErrorSummary] = useState([]);
+  const [errorSummaries, setErrorSummaries] = useState({});
+  const [analysisModel, setAnalysisModel] = useState("");
   const [errorLength, setErrorLength] = useState([]);
   const [errorSignal, setErrorSignal] = useState([]);
   const [errorConfidence, setErrorConfidence] = useState([]);
   const [images, setImages] = useState([]);
   const [activeTab, setActiveTab] = useState("setup");
+  const [explainModel, setExplainModel] = useState("modernbert");
+  const [explainText, setExplainText] = useState("");
+  const [explaining, setExplaining] = useState(false);
+  const [explainResult, setExplainResult] = useState(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearWeights, setClearWeights] = useState(false);
+
+  const handleExplain = async () => {
+    setExplaining(true);
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_id: explainModel, text: explainText }),
+      });
+      const data = await res.json();
+      setExplainResult(data);
+    } catch (err) {
+      console.error("Explanation failed", err);
+    } finally {
+      setExplaining(false);
+    }
+  };
 
   const DEFAULT_MODELS = ["modernbert", "cryptobert", "finbert", "bert-base", "roberta-base"];
 
@@ -45,7 +72,17 @@ export default function App() {
         setConfigFailed(true);
       });
     refreshStatus();
+    fetchTrainedModels();
   }, []);
+
+  const fetchTrainedModels = async () => {
+    try {
+      const data = await fetchJson("/api/models/trained");
+      setTrainedModels(data?.models || []);
+    } catch (err) {
+      console.error("Failed to fetch trained models", err);
+    }
+  };
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,38 +93,72 @@ export default function App() {
       setStatus(data);
     } catch (err) {
       console.error("Refresh failed:", err);
+      // If server is unreachable, we don't want to show "running" forever
+      setStatus(prev => prev?.status === "running" ? { ...prev, status: "error" } : prev);
     } finally {
       if (manual) setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    if (!status || status.status !== "running") return;
-    const timer = setInterval(() => refreshStatus(false), 3000);
+    if (!status || (status.status !== "running" && status.status !== "clearing")) return;
+    const timer = setInterval(() => refreshStatus(false), status.status === "clearing" ? 1000 : 3000);
     return () => clearInterval(timer);
   }, [status]);
 
   const loadResults = async () => {
-    const bench = await fetchJson("/api/benchmark");
-    setBenchmark(bench.rows || []);
-    const summary = await fetchJson("/api/errors/error_summary");
-    setErrorSummary(summary.rows || []);
-    const length = await fetchJson("/api/errors/error_by_length");
-    setErrorLength(length.rows || []);
-    const signal = await fetchJson("/api/errors/error_by_signal");
-    setErrorSignal(signal.rows || []);
-    const conf = await fetchJson("/api/errors/error_by_confidence");
-    setErrorConfidence(conf.rows || []);
-    const imgs = await fetchJson("/api/images");
-    setImages(imgs.images || []);
+    try {
+      const [bench, errSums] = await Promise.all([
+        fetchJson("/api/benchmark"),
+        fetchJson("/api/errors/summaries/all")
+      ]);
+      setBenchmark(bench?.rows || []);
+      setErrorSummaries(errSums || {});
+
+      const models = Object.keys(errSums || {});
+      if (models.length > 0 && !analysisModel) {
+        setAnalysisModel(models[0]);
+      }
+
+      const imgs = await fetchJson("/api/images");
+      setImages(imgs.images || []);
+    } catch (err) {
+      console.warn("Failed to load generic results", err);
+    }
   };
+
+  const loadAnalysisData = async (model) => {
+    if (!model) return;
+    try {
+      const [len, sig, conf] = await Promise.all([
+        fetchJson(`/api/errors/error_by_length?model=${model}`),
+        fetchJson(`/api/errors/error_by_signal?model=${model}`),
+        fetchJson(`/api/errors/error_by_confidence?model=${model}`),
+      ]);
+      setErrorLength(len?.rows || []);
+      setErrorSignal(sig?.rows || []);
+      setErrorConfidence(conf?.rows || []);
+    } catch (err) {
+      console.warn("Failed to load analysis for", model, err);
+    }
+  };
+
+  useEffect(() => {
+    if (analysisModel) {
+      loadAnalysisData(analysisModel);
+    }
+  }, [analysisModel]);
 
   useEffect(() => {
     if (status?.status === "completed") {
       loadResults();
       setActiveTab("overview");
     }
-  }, [status]);
+    // If we transition from clearing to idle, force a reload
+    if (clearing && status?.status === "idle") {
+      window.location.reload();
+    }
+  }, [status, clearing]);
 
   const canShowTabs = status?.status === "completed";
 
@@ -96,13 +167,30 @@ export default function App() {
   }, [benchmark]);
 
   const startTraining = async () => {
-    await fetchJson("/api/train", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ models: selectedModels }),
-    });
-    refreshStatus();
+    try {
+      await fetchJson("/api/train", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ models: selectedModels }),
+      });
+      refreshStatus();
+    } catch (err) {
+      alert("Failed to start training: " + err.message);
+    }
   };
+
+  const allSelectedTrained = useMemo(() => {
+    if (!selectedModels.length) return false;
+    return selectedModels.every(m => trainedModels.find(t => t.model === m)?.has_weights);
+  }, [selectedModels, trainedModels]);
+
+  const allSelectedCached = useMemo(() => {
+    if (!selectedModels.length) return false;
+    return selectedModels.every(m => {
+      const t = trainedModels.find(tm => tm.model === m);
+      return t?.has_weights && t?.has_benchmark && t?.has_analysis;
+    });
+  }, [selectedModels, trainedModels]);
 
   const total_steps = status?.total_steps ?? 0;
   const current_step = status?.current_step ?? 0;
@@ -123,21 +211,28 @@ export default function App() {
     return groups;
   }, [images]);
 
+
   const clearSession = async () => {
-    if (!window.confirm("Are you sure you want to clear all training results and artifacts?")) return;
+    const msg = clearWeights
+      ? "Are you sure you want to clear EVERYTHING, including trained model weights?"
+      : "Are you sure you want to clear benchmarks and analysis? Model weights will be KEPT.";
+
+    if (!window.confirm(msg)) return;
+
+    setClearing(true);
     try {
-      await fetchJson("/api/clear-session", { method: "POST" });
-      setStatus(null);
-      setBenchmark([]);
-      setErrorSummary([]);
-      setErrorLength([]);
-      setErrorSignal([]);
-      setErrorConfidence([]);
-      setImages([]);
-      setActiveTab("setup");
+      await fetchJson("/api/clear-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clear_models: clearWeights })
+      });
+      // Don't reload yet! The background task is just starting.
+      // polling will detect the "clearing" status and eventually "idle"
       refreshStatus();
+      setClearing(false);
     } catch (err) {
       alert("Failed to clear session: " + err.message);
+      setClearing(false);
     }
   };
 
@@ -155,12 +250,20 @@ export default function App() {
           <div className={`pill ${status?.status || "idle"}`}>
             {status?.status || "idle"}
           </div>
-          <div className="btn-group">
+          <div className="btn-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+              <input
+                type="checkbox"
+                checked={clearWeights}
+                onChange={(e) => setClearWeights(e.target.checked)}
+              />
+              Clear weights
+            </label>
             <button className="btn refresh-btn" onClick={() => refreshStatus(true)} disabled={refreshing}>
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
-            <button className="btn danger" onClick={clearSession} disabled={status?.status === "running"}>
-              Clear Session
+            <button className="btn danger" onClick={clearSession} disabled={status?.status === "running" || status?.status === "clearing" || clearing}>
+              {clearing || status?.status === "clearing" ? "Clearing..." : "Clear Session"}
             </button>
           </div>
         </div>
@@ -170,11 +273,11 @@ export default function App() {
         <section className="progress-card">
           <div className="progress-inner">
             <span>
-              {status?.current_model?.startsWith("Analyzing")
-                ? status.current_model
+              {status?.current_model?.startsWith("Analyzing") || status?.current_model?.startsWith("Benchmarking")
+                ? `${status.current_model}...`
                 : status?.current_model
                   ? `Training ${status.current_model}...`
-                  : "Training progress"}
+                  : "Processing..."}
             </span>
             <strong>{progressPercent}% complete</strong>
           </div>
@@ -237,9 +340,23 @@ export default function App() {
           </div>
         </div>
         <div className="actions">
-          <button className="btn primary" onClick={startTraining} disabled={!selectedModels.length || status?.status === "running"}>
-            Run Training + Benchmark
-          </button>
+          <div style={{ marginBottom: '1rem' }}>
+            <button className="btn primary" onClick={startTraining} disabled={!selectedModels.length || status?.status === "running"}>
+              {allSelectedCached ? "Launch Dashboard (Instant)" : allSelectedTrained ? "Re-run Benchmark (Skip Training)" : "Run Training + Benchmark"}
+            </button>
+          </div>
+          {allSelectedCached ? (
+            <p className="success" style={{ padding: '0.5rem', background: 'rgba(74, 222, 128, 0.1)', border: '1px solid var(--success)', borderRadius: '4px', fontSize: '0.9rem' }}>
+              <strong>Notice:</strong> All models, benchmarks, and analysis results are cached.
+              Clicking the button will jump instantly to the presenting tabs.
+            </p>
+          ) : allSelectedTrained && (
+            <p className="success" style={{ padding: '0.5rem', background: 'rgba(74, 222, 128, 0.1)', border: '1px solid var(--success)', borderRadius: '4px', fontSize: '0.9rem' }}>
+              <strong>Notice:</strong> All selected models are already trained.
+              Clicking the button will skip training and proceed straight to benchmarking.
+              To retrain, check "Clear weights" and click "Clear Session" first.
+            </p>
+          )}
           {status?.status === "failed" && <p className="error">Job failed: {status.error}</p>}
         </div>
       </section>
@@ -250,7 +367,8 @@ export default function App() {
           { id: "benchmarks", label: "Benchmarks", requiresTrain: true },
           { id: "errors", label: "Error Analysis", requiresTrain: true },
           { id: "backtest", label: "Backtest", requiresTrain: true },
-          { id: "analyze", label: "Analyze Headlines", requiresTrain: true },
+          { id: "gpt", label: "Market GPT", requiresTrain: true },
+          { id: "analyze", label: "Live Analysis", requiresTrain: false },
           { id: "artifacts", label: "Artifacts", requiresTrain: true },
         ].map((tab) => {
           const locked = tab.requiresTrain && !canShowTabs;
@@ -269,40 +387,41 @@ export default function App() {
 
       {activeTab === "overview" && (canShowTabs || false) && (
         <section className="grid three">
-          <div className="card">
-            <h3>Leaderboard (Macro F1)</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th>F1</th>
-                  <th>Accuracy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((row) => (
-                  <tr key={row.model}>
-                    <td>{row.model}</td>
-                    <td>{formatNum(row.f1_macro)}</td>
-                    <td>{formatNum(row.accuracy)}</td>
+          <div className="card full-width">
+            <h3>Leaderboard & Accuracy Overview</h3>
+            <div className="leaderboard-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Model</th>
+                    <th>F1 Macro</th>
+                    <th>Accuracy</th>
+                    <th>Sample Size</th>
+                    <th>Error Rate</th>
+                    <th>Avg Conf</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <h3>Error Summary</h3>
-            <div className="summary-grid">
-              {errorSummary.map((row) => (
-                <div key={row.key} className="summary-card">
-                  <span>{row.key.replaceAll("_", " ")}</span>
-                  <strong>{formatNum(row.value)}</strong>
-                </div>
-              ))}
+                </thead>
+                <tbody>
+                  {leaderboard.map((row) => {
+                    const sum = errorSummaries[row.model] || [];
+                    const getVal = (key) => sum.find(r => r.key === key)?.value;
+                    return (
+                      <tr key={row.model}>
+                        <td><strong>{row.model}</strong></td>
+                        <td>{formatNum(row.f1_macro)}</td>
+                        <td>{formatNum(row.accuracy)}</td>
+                        <td>{getVal("total_samples")}</td>
+                        <td style={{ color: "var(--red)" }}>{formatNum(getVal("error_rate"))}</td>
+                        <td>{formatNum(getVal("avg_confidence"))}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
           <div className="card">
-            <h3>Latency Snapshot</h3>
+            <h3>Latency Breakdown</h3>
             <ul className="list">
               {leaderboard.map((row) => (
                 <li key={row.model}>
@@ -317,7 +436,12 @@ export default function App() {
 
       {activeTab === "benchmarks" && canShowTabs && (
         <section className="card">
-          <h2>Benchmark Results</h2>
+          <div className="flex-between">
+            <h2>Model Benchmarks</h2>
+            <div className="flex-group">
+              <button className="btn mini" onClick={loadResults}>Refresh Results</button>
+            </div>
+          </div>
           <table>
             <thead>
               <tr>
@@ -335,79 +459,131 @@ export default function App() {
               ))}
             </tbody>
           </table>
+
+          <div className="explain-search-section card" style={{ marginTop: "2rem", borderTop: "1px solid #333", paddingTop: "2rem" }}>
+            <h3>Explain a Custom Prediction</h3>
+            <p className="muted">Select a model and enter a headline to see its internal attribution.</p>
+            <div className="flex-group" style={{ marginBottom: "1rem" }}>
+              <select
+                value={explainModel}
+                onChange={(e) => setExplainModel(e.target.value)}
+                style={{ background: "#111", color: "white", padding: "0.5rem", borderRadius: "4px" }}
+              >
+                {selectedModels.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <input
+                type="text"
+                placeholder="Enter a crypto headline..."
+                value={explainText}
+                onChange={(e) => setExplainText(e.target.value)}
+                style={{ flex: 1, padding: "0.5rem", background: "#111", border: "1px solid #333", color: "white", borderRadius: "4px" }}
+              />
+              <button
+                className="btn primary"
+                onClick={handleExplain}
+                disabled={explaining || !explainText}
+              >
+                {explaining ? "Explaining..." : "Explain Prediction"}
+              </button>
+            </div>
+
+            {explainResult && (
+              <ExplainabilityCard result={explainResult} originalText={explainText} />
+            )}
+          </div>
         </section>
       )}
 
       {activeTab === "errors" && canShowTabs && (
-        <section className="grid three">
-          <div className="card">
-            <h3>Error by Length</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Bucket</th>
-                  <th>Error rate</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {errorLength.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.length_bucket}</td>
-                    <td>{formatNum(row.error_rate)}</td>
-                    <td>{formatNum(row.total, 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="error-analysis-container">
+          <div className="card filter-bar" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+            <span>Analyzing results for:</span>
+            <select
+              value={analysisModel}
+              onChange={(e) => setAnalysisModel(e.target.value)}
+              className="model-select"
+              style={{ background: "#111", color: "white", padding: "0.5rem", borderRadius: "4px" }}
+            >
+              {Object.keys(errorSummaries).map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <p className="muted" style={{ margin: 0 }}>Detailed metrics fluctuate per model architecture and pre-training.</p>
           </div>
-          <div className="card">
-            <h3>Error by Signal</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Signal</th>
-                  <th>Value</th>
-                  <th>Error rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {errorSignal.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.signal}</td>
-                    <td>{row.value}</td>
-                    <td>{formatNum(row.error_rate)}</td>
+          <section className="grid three">
+            <div className="card">
+              <h3>Error by Length</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bucket</th>
+                    <th>Error rate</th>
+                    <th>Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="card">
-            <h3>Error by Confidence</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th>Bucket</th>
-                  <th>Error rate</th>
-                  <th>Accuracy</th>
-                </tr>
-              </thead>
-              <tbody>
-                {errorConfidence.map((row, idx) => (
-                  <tr key={idx}>
-                    <td>{row.confidence_bucket}</td>
-                    <td>{formatNum(row.error_rate)}</td>
-                    <td>{formatNum(row.accuracy)}</td>
+                </thead>
+                <tbody>
+                  {errorLength.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.length_bucket}</td>
+                      <td>{formatNum(row.error_rate)}</td>
+                      <td>{formatNum(row.total, 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card">
+              <h3>Error by Signal</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Signal</th>
+                    <th>Value</th>
+                    <th>Error rate</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {errorSignal.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.signal}</td>
+                      <td>{row.value}</td>
+                      <td>{formatNum(row.error_rate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card">
+              <h3>Error by Confidence</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bucket</th>
+                    <th>Error rate</th>
+                    <th>Accuracy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {errorConfidence.map((row, idx) => (
+                    <tr key={idx}>
+                      <td>{row.confidence_bucket}</td>
+                      <td>{formatNum(row.error_rate)}</td>
+                      <td>{formatNum(row.accuracy)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
       )}
 
       {activeTab === "backtest" && (
         <BacktestView models={config?.models || DEFAULT_MODELS} />
+      )}
+
+      {activeTab === "gpt" && (
+        <MarketGPTView />
       )}
 
       {activeTab === "analyze" && (
