@@ -1,0 +1,91 @@
+Listing models from new SDK:
+Name: models/gemini-2.5-flash, DisplayName: Gemini 2.5 Flash
+Name: models/gemini-2.5-pro, DisplayName: Gemini 2.5 Pro
+Name: models/gemini-2.0-flash, DisplayName: Gemini 2.0 Flash
+Name: models/gemini-2.0-flash-001, DisplayName: Gemini 2.0 Flash 001
+Name: models/gemini-2.0-flash-exp-image-generation, DisplayName: Gemini 2.0 Flash (Image Generation) Experimental
+Name: models/gemini-2.0-flash-lite-001, DisplayName: Gemini 2.0 Flash-Lite 001
+Name: models/gemini-2.0-flash-lite, DisplayName: Gemini 2.0 Flash-Lite
+Name: models/gemini-2.5-flash-preview-tts, DisplayName: Gemini 2.5 Flash Preview TTS
+Name: models/gemini-2.5-pro-preview-tts, DisplayName: Gemini 2.5 Pro Preview TTS
+Name: models/gemma-3-1b-it, DisplayName: Gemma 3 1B
+Name: models/gemma-3-4b-it, DisplayName: Gemma 3 4B
+Name: models/gemma-3-12b-it, DisplayName: Gemma 3 12B
+Name: models/gemma-3-27b-it, DisplayName: Gemma 3 27B
+Name: models/gemma-3n-e4b-it, DisplayName: Gemma 3n E4B
+Name: models/gemma-3n-e2b-it, DisplayName: Gemma 3n E2B
+Name: models/gemini-flash-latest, DisplayName: Gemini Flash Latest
+Name: models/gemini-flash-lite-latest, DisplayName: Gemini Flash-Lite Latest
+Name: models/gemini-pro-latest, DisplayName: Gemini Pro Latest
+Name: models/gemini-2.5-flash-lite, DisplayName: Gemini 2.5 Flash-Lite
+Name: models/gemini-2.5-flash-image, DisplayName: Nano Banana
+Name: models/gemini-2.5-flash-lite-preview-09-2025, DisplayName: Gemini 2.5 Flash-Lite Preview Sep 2025
+Name: models/gemini-3-pro-preview, DisplayName: Gemini 3 Pro Preview
+Name: models/gemini-3-flash-preview, DisplayName: Gemini 3 Flash Preview
+Name: models/gemini-3.1-pro-preview, DisplayName: Gemini 3.1 Pro Preview
+Name: models/gemini-3.1-pro-preview-customtools, DisplayName: Gemini 3.1 Pro Preview Custom Tools
+Name: models/gemini-3-pro-image-preview, DisplayName: Nano Banana Pro
+Name: models/nano-banana-pro-preview, DisplayName: Nano Banana Pro
+Name: models/gemini-3.1-flash-image-preview, DisplayName: Nano Banana 2
+Name: models/gemini-robotics-er-1.5-preview, DisplayName: Gemini Robotics-ER 1.5 Preview
+Name: models/gemini-2.5-computer-use-preview-10-2025, DisplayName: Gemini 2.5 Computer Use Preview 10-2025
+Name: models/deep-research-pro-preview-12-2025, DisplayName: Deep Research Pro Preview (Dec-12-2025)
+Name: models/gemini-embedding-001, DisplayName: Gemini Embedding 001
+Name: models/aqa, DisplayName: Model that performs Attributed Question Answering.
+Name: models/imagen-4.0-generate-001, DisplayName: Imagen 4
+Name: models/imagen-4.0-ultra-generate-001, DisplayName: Imagen 4 Ultra
+Name: models/imagen-4.0-fast-generate-001, DisplayName: Imagen 4 Fast
+Name: models/veo-2.0-generate-001, DisplayName: Veo 2
+Name: models/veo-3.0-generate-001, DisplayName: Veo 3
+Name: models/veo-3.0-fast-generate-001, DisplayName: Veo 3 fast
+Name: models/veo-3.1-generate-preview, DisplayName: Veo 3.1
+Name: models/veo-3.1-fast-generate-preview, DisplayName: Veo 3.1 fast
+Name: models/gemini-2.5-flash-native-audio-latest, DisplayName: Gemini 2.5 Flash Native Audio Latest
+Name: models/gemini-2.5-flash-native-audio-preview-09-2025, DisplayName: Gemini 2.5 Flash Native Audio Preview 09-2025
+Name: models/gemini-2.5-flash-native-audio-preview-12-2025, DisplayName: Gemini 2.5 Flash Native Audio Preview 12-2025
+
+Listing models from legacy SDK:
+Name: models/gemini-2.5-flash, DisplayName: Gemini 2.5 Flash
+Name: models/gemini-2.5-pro, DisplayName: Gemini 2.5 Pro
+Name: models/gemini-2.0-flash, DisplayName: Gemini 2.0 Flash
+Name: models/gemini-2.0-flash-001, DisplayName: Gemini 2.0 Flash 001
+Name: models/gemini-2.0-flash-exp-image-generation, DisplayName: Gemini 2.0 Flash (Image Generation) Experimental
+Name: models/gemini-2.0-flash-lite-001, DisplayName: Gemini 2.0 Flash-Lite 001
+Name: models/gemini-2.0-flash-lite, DisplayName: Gemini 2.0 Flash-Lite
+Name: models/gemini-2.5-flash-preview-tts, DisplayName: Gemini 2.5 Flash Preview TTS
+Name: models/gemini-2.5-pro-preview-tts, DisplayName: Gemini 2.5 Pro Preview TTS
+Name: models/gemma-3-1b-it, DisplayName: Gemma 3 1B
+Name: models/gemma-3-4b-it, DisplayName: Gemma 3 4B
+Name: models/gemma-3-12b-it, DisplayName: Gemma 3 12B
+Name: models/gemma-3-27b-it, DisplayName: Gemma 3 27B
+Name: models/gemma-3n-e4b-it, DisplayName: Gemma 3n E4B
+Name: models/gemma-3n-e2b-it, DisplayName: Gemma 3n E2B
+Name: models/gemini-flash-latest, DisplayName: Gemini Flash Latest
+Name: models/gemini-flash-lite-latest, DisplayName: Gemini Flash-Lite Latest
+Name: models/gemini-pro-latest, DisplayName: Gemini Pro Latest
+Name: models/gemini-2.5-flash-lite, DisplayName: Gemini 2.5 Flash-Lite
+Name: models/gemini-2.5-flash-image, DisplayName: Nano Banana
+Name: models/gemini-2.5-flash-lite-preview-09-2025, DisplayName: Gemini 2.5 Flash-Lite Preview Sep 2025
+Name: models/gemini-3-pro-preview, DisplayName: Gemini 3 Pro Preview
+Name: models/gemini-3-flash-preview, DisplayName: Gemini 3 Flash Preview
+Name: models/gemini-3.1-pro-preview, DisplayName: Gemini 3.1 Pro Preview
+Name: models/gemini-3.1-pro-preview-customtools, DisplayName: Gemini 3.1 Pro Preview Custom Tools
+Name: models/gemini-3-pro-image-preview, DisplayName: Nano Banana Pro
+Name: models/nano-banana-pro-preview, DisplayName: Nano Banana Pro
+Name: models/gemini-3.1-flash-image-preview, DisplayName: Nano Banana 2
+Name: models/gemini-robotics-er-1.5-preview, DisplayName: Gemini Robotics-ER 1.5 Preview
+Name: models/gemini-2.5-computer-use-preview-10-2025, DisplayName: Gemini 2.5 Computer Use Preview 10-2025
+Name: models/deep-research-pro-preview-12-2025, DisplayName: Deep Research Pro Preview (Dec-12-2025)
+Name: models/gemini-embedding-001, DisplayName: Gemini Embedding 001
+Name: models/aqa, DisplayName: Model that performs Attributed Question Answering.
+Name: models/imagen-4.0-generate-001, DisplayName: Imagen 4
+Name: models/imagen-4.0-ultra-generate-001, DisplayName: Imagen 4 Ultra
+Name: models/imagen-4.0-fast-generate-001, DisplayName: Imagen 4 Fast
+Name: models/veo-2.0-generate-001, DisplayName: Veo 2
+Name: models/veo-3.0-generate-001, DisplayName: Veo 3
+Name: models/veo-3.0-fast-generate-001, DisplayName: Veo 3 fast
+Name: models/veo-3.1-generate-preview, DisplayName: Veo 3.1
+Name: models/veo-3.1-fast-generate-preview, DisplayName: Veo 3.1 fast
+Name: models/gemini-2.5-flash-native-audio-latest, DisplayName: Gemini 2.5 Flash Native Audio Latest
+Name: models/gemini-2.5-flash-native-audio-preview-09-2025, DisplayName: Gemini 2.5 Flash Native Audio Preview 09-2025
+Name: models/gemini-2.5-flash-native-audio-preview-12-2025, DisplayName: Gemini 2.5 Flash Native Audio Preview 12-2025

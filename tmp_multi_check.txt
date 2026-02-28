@@ -1,0 +1,243 @@
+{
+  "model": "modernbert",
+  "text": "bitcoin price is falling rapidly",
+  "base_prediction": "Bearish",
+  "base_confidence": 0.9997,
+  "anchored_to": "Bullish class \u2014 positive = bullish driver, negative = bearish driver",
+  "methods": {
+    "occlusion": {
+      "description": "Masks one token at a time; measures how much its removal changes the Bullish class probability.",
+      "finance_note": "Factor sensitivity analysis \u2014 isolates each word's marginal contribution to the bullish signal.",
+      "tokens": [
+        {
+          "token": "bit",
+          "weight": -0.0003448054485488683
+        },
+        {
+          "token": "coin",
+          "weight": -0.0005912570049986243
+        },
+        {
+          "token": "price",
+          "weight": -0.0009824150474742055
+        },
+        {
+          "token": "is",
+          "weight": -0.0007941818330436945
+        },
+        {
+          "token": "falling",
+          "weight": -0.9699908494949341
+        },
+        {
+          "token": "rapidly",
+          "weight": -0.000429520063335076
+        }
+      ],
+      "top_bullish": [],
+      "top_bearish": [
+        {
+          "token": "falling",
+          "weight": -0.9699908494949341
+        },
+        {
+          "token": "price",
+          "weight": -0.0009824150474742055
+        },
+        {
+          "token": "is",
+          "weight": -0.0007941818330436945
+        },
+        {
+          "token": "coin",
+          "weight": -0.0005912570049986243
+        },
+        {
+          "token": "rapidly",
+          "weight": -0.000429520063335076
+        }
+      ],
+      "highlighted_html": "bit coin price is <span class='tok pos-5' title='0.9736'>falling</span> rapidly"
+    },
+    "integrated_gradients": {
+      "description": "Computes gradients along a path from a zero-embedding baseline to the actual input, summing contributions to Bullish class probability.",
+      "finance_note": "Shapley value allocation \u2014 each word receives credit proportional to its causal contribution across all interpolation steps.",
+      "tokens": [
+        {
+          "token": "bit",
+          "weight": -0.3707
+        },
+        {
+          "token": "coin",
+          "weight": -0.3978
+        },
+        {
+          "token": "price",
+          "weight": -0.1379
+        },
+        {
+          "token": "is",
+          "weight": -0.0831
+        },
+        {
+          "token": "falling",
+          "weight": -0.5505
+        },
+        {
+          "token": "rapidly",
+          "weight": -0.0779
+        }
+      ],
+      "top_bullish": [],
+      "top_bearish": [
+        {
+          "token": "falling",
+          "weight": -0.5505
+        },
+        {
+          "token": "coin",
+          "weight": -0.3978
+        },
+        {
+          "token": "bit",
+          "weight": -0.3707
+        },
+        {
+          "token": "price",
+          "weight": -0.1379
+        },
+        {
+          "token": "is",
+          "weight": -0.0831
+        }
+      ]
+    },
+    "grad_input": {
+      "description": "Multiplies each token's embedding gradient by its embedding value (\u2202Bullish/\u2202emb \u00d7 emb). Single-pass, stable, and sign-consistent.",
+      "finance_note": "First-order sensitivity analysis \u2014 directional derivative showing how a marginal shift in each word's representation changes the bullish signal.",
+      "tokens": [
+        {
+          "token": "bit",
+          "weight": 0.0386
+        },
+        {
+          "token": "coin",
+          "weight": -0.4816
+        },
+        {
+          "token": "price",
+          "weight": 0.165
+        },
+        {
+          "token": "is",
+          "weight": 0.2556
+        },
+        {
+          "token": "falling",
+          "weight": -0.8347
+        },
+        {
+          "token": "rapidly",
+          "weight": 0.9887
+        }
+      ],
+      "top_bullish": [
+        {
+          "token": "rapidly",
+          "weight": 0.9887
+        },
+        {
+          "token": "is",
+          "weight": 0.2556
+        },
+        {
+          "token": "price",
+          "weight": 0.165
+        },
+        {
+          "token": "bit",
+          "weight": 0.0386
+        }
+      ],
+      "top_bearish": [
+        {
+          "token": "falling",
+          "weight": -0.8347
+        },
+        {
+          "token": "coin",
+          "weight": -0.4816
+        }
+      ]
+    }
+  },
+  "method_comparison": [
+    {
+      "token": "falling",
+      "occlusion": -0.97,
+      "integrated_gradients": -0.5505,
+      "grad_input": -0.8347,
+      "all_agree": true,
+      "avg_weight": -0.7851
+    },
+    {
+      "token": "rapidly",
+      "occlusion": -0.0004,
+      "integrated_gradients": -0.0779,
+      "grad_input": 0.9887,
+      "all_agree": false,
+      "avg_weight": 0.3035
+    },
+    {
+      "token": "coin",
+      "occlusion": -0.0006,
+      "integrated_gradients": -0.3978,
+      "grad_input": -0.4816,
+      "all_agree": true,
+      "avg_weight": -0.2933
+    },
+    {
+      "token": "bit",
+      "occlusion": -0.0003,
+      "integrated_gradients": -0.3707,
+      "grad_input": 0.0386,
+      "all_agree": false,
+      "avg_weight": -0.1108
+    },
+    {
+      "token": "is",
+      "occlusion": -0.0008,
+      "integrated_gradients": -0.0831,
+      "grad_input": 0.2556,
+      "all_agree": false,
+      "avg_weight": 0.0572
+    },
+    {
+      "token": "price",
+      "occlusion": -0.001,
+      "integrated_gradients": -0.1379,
+      "grad_input": 0.165,
+      "all_agree": false,
+      "avg_weight": 0.0087
+    }
+  ],
+  "model_sensitivity": {
+    "confidence_drop_pct": 98.1,
+    "key_driver": "falling",
+    "interpretation": "Removing 'falling' drops model confidence by 98.1% \u2014 highly sensitive to this term.",
+    "risk_level": "high"
+  },
+  "stability": {
+    "score_0_1": 0,
+    "label": "low",
+    "perturbations": [
+      {
+        "type": "drop_top_token",
+        "diff": -0.981
+      }
+    ]
+  },
+  "counterfactual": {
+    "found": false
+  }
+}

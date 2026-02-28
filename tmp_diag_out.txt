@@ -1,0 +1,19 @@
+=== Base forward ===
+probs: [0.2203, 0.2108, 0.5689]
+n_classes: 3
+
+=== Embedding layers ===
+  model.embeddings.tok_embeddings: torch.Size([50368, 768])
+  -> Using this one
+
+=== inputs_embeds test ===
+raw_embeds shape: torch.Size([8, 768])
+bullish_score: 0.5689
+leaf.grad is None: False
+gi (first 5): [-0.0001, 0.0001, -0.0002, 0.0001, -0.0002]
+gi max abs: 0.0003
+
+=== Wrapper model type ===
+wrapper type: ModernBERTWrapper
+wrapper.model type: ModernBertForSequenceClassification
+has encode_texts: True
