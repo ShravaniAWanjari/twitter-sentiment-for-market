@@ -1,10 +1,68 @@
 import { useState, useEffect, useRef } from "react";
 
+/* ── Simple Markdown-to-JSX renderer ── */
+function RenderMarkdown({ text }) {
+    if (!text) return null;
+    const lines = text.split("\n");
+    const elements = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        // Headings
+        if (line.startsWith("### ")) {
+            elements.push(<h4 key={i} style={{ color: "#818cf8", margin: "1.2rem 0 0.4rem", fontSize: "0.9rem", fontWeight: 700, borderBottom: "1px solid rgba(129,140,248,0.15)", paddingBottom: "0.3rem" }}>{parseBold(line.slice(4))}</h4>);
+            i++; continue;
+        }
+        if (line.startsWith("## ")) {
+            elements.push(<h3 key={i} style={{ color: "#818cf8", margin: "1.2rem 0 0.5rem", fontSize: "1rem", fontWeight: 700 }}>{parseBold(line.slice(3))}</h3>);
+            i++; continue;
+        }
+
+        // Bullet points
+        if (line.trimStart().startsWith("- ") || line.trimStart().startsWith("* ")) {
+            const bullet = line.trimStart().slice(2);
+            elements.push(
+                <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px", paddingLeft: "0.5rem" }}>
+                    <span style={{ color: "#818cf8", flexShrink: 0 }}>•</span>
+                    <span style={{ fontSize: "0.84rem", color: "#c4c8f0", lineHeight: 1.6 }}>{parseBold(bullet)}</span>
+                </div>
+            );
+            i++; continue;
+        }
+
+        // Empty lines
+        if (line.trim() === "") {
+            elements.push(<div key={i} style={{ height: "0.4rem" }} />);
+            i++; continue;
+        }
+
+        // Regular paragraph
+        elements.push(<p key={i} style={{ fontSize: "0.86rem", color: "#c4c8f0", lineHeight: 1.7, margin: "0 0 0.5rem" }}>{parseBold(line)}</p>);
+        i++;
+    }
+
+    return <>{elements}</>;
+}
+
+function parseBold(text) {
+    if (!text) return text;
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((p, i) => {
+        if (p.startsWith("**") && p.endsWith("**")) {
+            return <strong key={i} style={{ color: "#e0e2ff", fontWeight: 600 }}>{p.slice(2, -2)}</strong>;
+        }
+        return p;
+    });
+}
+
+
 export default function MarketGPTView() {
     const [chatQuery, setChatQuery] = useState("");
     const [chatHistory, setChatHistory] = useState([]);
     const [thinking, setThinking] = useState(false);
-    const [thinkingPhase, setThinkingPhase] = useState("Thinking...");
+    const [thinkingPhase, setThinkingPhase] = useState("Analysing context...");
     const [snapshot, setSnapshot] = useState(null);
     const chatRef = useRef(null);
 
@@ -30,23 +88,20 @@ export default function MarketGPTView() {
         setChatQuery("");
         setThinking(true);
 
-        const keywords = ["btc", "bitcoin", "alpha", "sharpe", "sentiment", "strategy", "rsi", "momentum"];
-        const found = keywords.find(k => query.toLowerCase().includes(k)) || "market";
-
         const phases = [
-            "Thinking...",
-            "Analyzing market trends...",
-            "Scouring backtest data...",
-            `Formulating answer for ${found.toUpperCase()}...`
+            "Analysing context...",
+            "Cross-referencing backtest data...",
+            "Synthesising research insights...",
         ];
 
         let phaseIdx = 0;
+        setThinkingPhase(phases[0]);
         const interval = setInterval(() => {
             phaseIdx++;
             if (phaseIdx < phases.length) {
                 setThinkingPhase(phases[phaseIdx]);
             }
-        }, 800);
+        }, 1200);
 
         try {
             const res = await fetch("/api/chat", {
@@ -62,45 +117,47 @@ export default function MarketGPTView() {
             setChatHistory(prev => [...prev, { role: "assistant", text: "Error connecting to chat." }]);
         } finally {
             setThinking(false);
-            setThinkingPhase("Thinking...");
+            setThinkingPhase("Analysing context...");
         }
     };
 
     return (
         <div className="market-gpt-container" style={{ maxWidth: '900px', margin: '0 auto', paddingTop: '1.5rem' }}>
-            <div className="chat-card active" style={{ height: '650px' }}>
+            <div className="chat-card active" style={{ height: '700px', display: 'flex', flexDirection: 'column' }}>
                 <div className="chat-header">
                     <div className="chat-dot"></div>
                     <strong>Market GPT</strong>
                     <span className="tiny muted" style={{ marginLeft: 'auto' }}>Grounded in Latest Backtest</span>
                 </div>
 
-                <div className="chat-thread" ref={chatRef}>
+                <div className="chat-thread" ref={chatRef} style={{ flex: 1, overflowY: 'auto' }}>
                     {chatHistory.length === 0 && (
                         <div className="empty-state">
                             <div className="pulse-icon">💬</div>
                             <h2 style={{ color: '#fff' }}>Market Intelligence Assistant</h2>
-                            <p className="muted">Ask me about backtest alpha, sentiment grounding, or January 2025 trends.</p>
-                            {snapshot && (
-                                <div className="card mini-card" style={{ marginTop: '2rem', textAlign: 'left', background: 'rgba(99, 102, 241, 0.05)' }}>
-                                    <p className="tiny muted">System Context Loaded:</p>
-                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem' }}>
-                                        <span><strong>Strategy:</strong> {snapshot.strategy}</span>
-                                        <span><strong>Model:</strong> {snapshot.model}</span>
-                                        <span className="text-success"><strong>Alpha:</strong> +{(snapshot.metrics?.gated?.total_return - snapshot.metrics?.baseline?.total_return).toFixed(2)}%</span>
-                                    </div>
-                                </div>
-                            )}
+                            <p className="muted">Ask me about backtest alpha, sentiment grounding, or model comparisons.</p>
+
                         </div>
                     )}
+
                     {chatHistory.map((m, i) => (
-                        <div key={i} className={`chat-bubble ${m.role}`}>
-                            {m.text}
-                        </div>
+                        m.role === "user" ? (
+                            <div key={i} className="chat-bubble user">
+                                {m.text}
+                            </div>
+                        ) : (
+                            <div key={i} className="gpt-response-card">
+                                <RenderMarkdown text={m.text} />
+                            </div>
+                        )
                     ))}
+
                     {thinking && (
-                        <div className="chat-bubble assistant thinking">
-                            <span></span> {thinkingPhase}
+                        <div className="gpt-thinking-indicator">
+                            <div className="thinking-dots">
+                                <span /><span /><span />
+                            </div>
+                            <span style={{ fontSize: "0.8rem", color: "#818cf8" }}>{thinkingPhase}</span>
                         </div>
                     )}
                 </div>

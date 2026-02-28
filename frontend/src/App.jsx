@@ -3,6 +3,7 @@ import BacktestView from "./components/BacktestView";
 import AnalyzeView from "./components/AnalyzeView";
 import MarketGPTView from "./components/MarketGPTView";
 import ExplainabilityCard from "./components/ExplainabilityCard";
+import SessionAnalysis from "./components/SessionAnalysis";
 
 async function fetchJson(path, options) {
   const res = await fetch(path, options);
@@ -44,7 +45,8 @@ export default function App() {
   const handleExplain = async () => {
     setExplaining(true);
     try {
-      const res = await fetch("/api/explain", {
+      // Call multi-method explain for richer results
+      const res = await fetch("/api/explain/multi", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model_id: explainModel, text: explainText }),
@@ -363,13 +365,11 @@ export default function App() {
 
       <nav className="tabs">
         {[
-          { id: "overview", label: "Overview", requiresTrain: true },
           { id: "benchmarks", label: "Benchmarks", requiresTrain: true },
-          { id: "errors", label: "Error Analysis", requiresTrain: true },
           { id: "backtest", label: "Backtest", requiresTrain: true },
           { id: "gpt", label: "Market GPT", requiresTrain: true },
           { id: "analyze", label: "Live Analysis", requiresTrain: false },
-          { id: "artifacts", label: "Artifacts", requiresTrain: true },
+          { id: "artifacts", label: "Session Analysis", requiresTrain: true },
         ].map((tab) => {
           const locked = tab.requiresTrain && !canShowTabs;
           return (
@@ -385,84 +385,167 @@ export default function App() {
         })}
       </nav>
 
-      {activeTab === "overview" && (canShowTabs || false) && (
-        <section className="grid three">
-          <div className="card full-width">
-            <h3>Leaderboard & Accuracy Overview</h3>
-            <div className="leaderboard-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Model</th>
-                    <th>F1 Macro</th>
-                    <th>Accuracy</th>
-                    <th>Sample Size</th>
-                    <th>Error Rate</th>
-                    <th>Avg Conf</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaderboard.map((row) => {
-                    const sum = errorSummaries[row.model] || [];
-                    const getVal = (key) => sum.find(r => r.key === key)?.value;
-                    return (
-                      <tr key={row.model}>
-                        <td><strong>{row.model}</strong></td>
-                        <td>{formatNum(row.f1_macro)}</td>
-                        <td>{formatNum(row.accuracy)}</td>
-                        <td>{getVal("total_samples")}</td>
-                        <td style={{ color: "var(--red)" }}>{formatNum(getVal("error_rate"))}</td>
-                        <td>{formatNum(getVal("avg_confidence"))}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div className="card">
-            <h3>Latency Breakdown</h3>
-            <ul className="list">
-              {leaderboard.map((row) => (
-                <li key={row.model}>
-                  <span>{row.model}</span>
-                  <strong>{formatNum(row.latency_ms_per_tweet, 2)} ms</strong>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      )}
+
 
       {activeTab === "benchmarks" && canShowTabs && (
         <section className="card">
-          <div className="flex-between">
+          <div className="flex-between" style={{ marginBottom: "1.5rem" }}>
             <h2>Model Benchmarks</h2>
-            <div className="flex-group">
-              <button className="btn mini" onClick={loadResults}>Refresh Results</button>
-            </div>
+            <button className="btn mini" onClick={loadResults}>Refresh</button>
           </div>
-          <table>
-            <thead>
-              <tr>
-                {benchmark[0] &&
-                  Object.keys(benchmark[0]).map((key) => <th key={key}>{key}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {benchmark.map((row) => (
-                <tr key={row.model}>
-                  {Object.keys(row).map((key) => (
-                    <td key={key}>{formatNum(row[key])}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
 
+          {/* ── Visual Performance Charts ── */}
+          {benchmark.length > 0 && (() => {
+            const COLORS = ["#818cf8", "#51cf66", "#ff9f43", "#ff6b6b", "#34d399"];
+            const models = benchmark.map(r => r.model);
+            const f1s = benchmark.map(r => Number(r.f1_macro) || 0);
+            const accs = benchmark.map(r => Number(r.accuracy) || 0);
+            const lats = benchmark.map(r => Number(r.latency_ms_per_tweet) || 0);
+            const maxF1 = Math.max(...f1s, 0.001);
+            const maxAcc = Math.max(...accs, 0.001);
+            const maxLat = Math.max(...lats, 0.001);
+
+            const BAR_H = 26, GAP = 8, LABEL_W = 96, BAR_MAX_W = 220;
+            const chartH = (BAR_H + GAP) * models.length + 20;
+
+            const BarChart = ({ values, max, colors, title, unit = "" }) => (
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: "0.78rem", color: "#8a8fb5", marginBottom: "0.5rem", fontWeight: 600 }}>{title}</p>
+                <svg viewBox={`0 0 ${LABEL_W + BAR_MAX_W + 60} ${chartH}`}
+                  style={{ width: "100%", height: chartH }}>
+                  {values.map((v, i) => {
+                    const bW = (v / max) * BAR_MAX_W;
+                    const y = 10 + i * (BAR_H + GAP);
+                    return (
+                      <g key={i}>
+                        <text x={LABEL_W - 6} y={y + BAR_H * 0.68}
+                          textAnchor="end" fontSize="11" fill="#c4c8f0">
+                          {models[i]}
+                        </text>
+                        <rect x={LABEL_W} y={y} width={bW} height={BAR_H}
+                          rx="4" fill={colors[i % colors.length]} opacity="0.8" />
+                        <text x={LABEL_W + bW + 6} y={y + BAR_H * 0.68}
+                          fontSize="10" fill={colors[i % colors.length]} fontWeight="700">
+                          {v.toFixed(3)}{unit}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+            );
+
+            return (
+              <div style={{ marginBottom: "2rem" }}>
+                <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem" }}>
+                  <BarChart values={f1s} max={maxF1} colors={COLORS} title="F1 Macro Score (higher = better)" />
+                  <BarChart values={accs} max={maxAcc} colors={COLORS} title="Accuracy (higher = better)" />
+                  <BarChart values={lats} max={maxLat} colors={COLORS} title="Latency ms/tweet (lower = better)" unit="ms" />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ── Raw data table (collapsed view) ── */}
+          <details style={{ marginBottom: "1.5rem" }}>
+            <summary style={{ cursor: "pointer", fontSize: "0.82rem", color: "#8a8fb5", userSelect: "none" }}>
+              Show raw benchmark data
+            </summary>
+            <table style={{ marginTop: "0.75rem", marginBottom: "2rem" }}>
+              <thead>
+                <tr>
+                  {benchmark[0] &&
+                    Object.keys(benchmark[0]).filter(k => k !== "slang_accuracy").map((key) => <th key={key}>{key}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {benchmark.map((row) => (
+                  <tr key={row.model}>
+                    {Object.keys(row).filter(k => k !== "slang_accuracy").map((key) => (
+                      <td key={key}>{formatNum(row[key])}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Integrated Error Analysis */}
+            <div className="error-analysis-integrated" style={{ borderTop: "1px solid #333", paddingTop: "1.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1.5rem" }}>
+                <h3 style={{ margin: 0, fontSize: "1rem" }}>Deep Error Attribution</h3>
+                <select
+                  value={analysisModel}
+                  onChange={(e) => setAnalysisModel(e.target.value)}
+                  style={{ background: "#111", color: "white", padding: "0.3rem 0.6rem", borderRadius: "4px", fontSize: "0.85rem", border: "1px solid #333" }}
+                >
+                  {Object.keys(errorSummaries).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid three" style={{ gap: "1rem" }}>
+                <div className="card mini">
+                  <h4 style={{ fontSize: "0.8rem", color: "#8a8fb5", marginBottom: "0.5rem" }}>Error by Length</h4>
+                  <table className="tiny">
+                    <thead>
+                      <tr><th>Bucket</th><th>Error</th><th>N</th></tr>
+                    </thead>
+                    <tbody>
+                      {errorLength.map((row, idx) => (
+                        <tr key={idx}>
+                          <td>{row.length_bucket}</td>
+                          <td style={{ color: "var(--red)" }}>{formatNum(row.error_rate)}</td>
+                          <td>{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="card mini">
+                  <h4 style={{ fontSize: "0.8rem", color: "#8a8fb5", marginBottom: "0.5rem" }}>Error by Signal</h4>
+                  <table className="tiny">
+                    <thead>
+                      <tr><th>Signal</th><th>Val</th><th>Error</th></tr>
+                    </thead>
+                    <tbody>
+                      {errorSignal.map((row, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontSize: "0.7rem" }}>{row.signal}</td>
+                          <td>{row.value}</td>
+                          <td style={{ color: "var(--red)" }}>{formatNum(row.error_rate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="card mini">
+                  <h4 style={{ fontSize: "0.8rem", color: "#8a8fb5", marginBottom: "0.5rem" }}>Error by Confidence</h4>
+                  <table className="tiny">
+                    <thead>
+                      <tr><th>Bucket</th><th>Error</th><th>Acc</th></tr>
+                    </thead>
+                    <tbody>
+                      {errorConfidence.map((row, idx) => (
+                        <tr key={idx}>
+                          <td>{row.confidence_bucket}</td>
+                          <td style={{ color: "var(--red)" }}>{formatNum(row.error_rate)}</td>
+                          <td>{formatNum(row.accuracy)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          {/* ── Explainability section ── */}
           <div className="explain-search-section card" style={{ marginTop: "2rem", borderTop: "1px solid #333", paddingTop: "2rem" }}>
             <h3>Explain a Custom Prediction</h3>
-            <p className="muted">Select a model and enter a headline to see its internal attribution.</p>
+            <p className="muted">Select a model and enter a headline — runs <strong>3 explainability methods simultaneously</strong> (Occlusion, Integrated Gradients, LIME).</p>
             <div className="flex-group" style={{ marginBottom: "1rem" }}>
               <select
                 value={explainModel}
@@ -476,6 +559,7 @@ export default function App() {
                 placeholder="Enter a crypto headline..."
                 value={explainText}
                 onChange={(e) => setExplainText(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && !explaining && explainText && handleExplain()}
                 style={{ flex: 1, padding: "0.5rem", background: "#111", border: "1px solid #333", color: "white", borderRadius: "4px" }}
               />
               <button
@@ -483,7 +567,7 @@ export default function App() {
                 onClick={handleExplain}
                 disabled={explaining || !explainText}
               >
-                {explaining ? "Explaining..." : "Explain Prediction"}
+                {explaining ? "Analysing with 3 methods…" : "⚡ Explain Prediction"}
               </button>
             </div>
 
@@ -494,89 +578,6 @@ export default function App() {
         </section>
       )}
 
-      {activeTab === "errors" && canShowTabs && (
-        <div className="error-analysis-container">
-          <div className="card filter-bar" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-            <span>Analyzing results for:</span>
-            <select
-              value={analysisModel}
-              onChange={(e) => setAnalysisModel(e.target.value)}
-              className="model-select"
-              style={{ background: "#111", color: "white", padding: "0.5rem", borderRadius: "4px" }}
-            >
-              {Object.keys(errorSummaries).map(m => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <p className="muted" style={{ margin: 0 }}>Detailed metrics fluctuate per model architecture and pre-training.</p>
-          </div>
-          <section className="grid three">
-            <div className="card">
-              <h3>Error by Length</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Bucket</th>
-                    <th>Error rate</th>
-                    <th>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorLength.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{row.length_bucket}</td>
-                      <td>{formatNum(row.error_rate)}</td>
-                      <td>{formatNum(row.total, 0)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="card">
-              <h3>Error by Signal</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Signal</th>
-                    <th>Value</th>
-                    <th>Error rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorSignal.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{row.signal}</td>
-                      <td>{row.value}</td>
-                      <td>{formatNum(row.error_rate)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="card">
-              <h3>Error by Confidence</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Bucket</th>
-                    <th>Error rate</th>
-                    <th>Accuracy</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {errorConfidence.map((row, idx) => (
-                    <tr key={idx}>
-                      <td>{row.confidence_bucket}</td>
-                      <td>{formatNum(row.error_rate)}</td>
-                      <td>{formatNum(row.accuracy)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      )}
 
       {activeTab === "backtest" && (
         <BacktestView models={config?.models || DEFAULT_MODELS} />
@@ -591,21 +592,11 @@ export default function App() {
       )}
 
       {activeTab === "artifacts" && canShowTabs && (
-        <div className="artifacts-container">
-          {Object.entries(groupedImages).map(([model, modelImages]) => (
-            <section key={model} className="model-artifacts-section">
-              <h2 className="model-heading">{model.toUpperCase()}</h2>
-              <div className="grid two">
-                {modelImages.map((img) => (
-                  <div className="card" key={img}>
-                    <h3>{img.split("_").slice(1).join(" ").replace(".png", "")}</h3>
-                    <img src={`/api/images/${img}`} alt={img} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
+        <SessionAnalysis
+          benchmark={benchmark}
+          errorSummaries={errorSummaries}
+          leaderboard={leaderboard}
+        />
       )}
     </div>
   );
