@@ -53,16 +53,22 @@ class BenchmarkRunner:
         model.eval()
         all_preds: List[int] = []
         all_labels: List[int] = []
+        all_confs: List[float] = []
         for start in tqdm(range(0, len(df), self.batch_size), desc="eval", leave=False):
             batch = df.iloc[start : start + self.batch_size]
             labels = [align_label(lbl) for lbl in batch["label"]]
             inputs = self._tokenize_batch(model, batch["text"].astype(str).tolist())
             with torch.no_grad():
                 outputs = model(**inputs)
-                preds = outputs["logits"].argmax(dim=-1).detach().cpu().tolist()
+                probs = torch.softmax(outputs["logits"], dim=-1)
+                confs, preds = torch.max(probs, dim=-1)
+                preds = preds.detach().cpu().tolist()
+                confs = confs.detach().cpu().tolist()
             all_preds.extend(preds)
             all_labels.extend(labels)
-        return all_labels, all_preds
+            all_confs.extend(confs)
+        avg_conf = sum(all_confs) / len(all_confs) if all_confs else 0.5
+        return all_labels, all_preds, avg_conf
 
     def _measure_latency(self, model, sample_texts: List[str]) -> float:
         model.eval()
@@ -97,14 +103,16 @@ class BenchmarkRunner:
 
         return avg_ms / batch_size
 
-    def evaluate_model(self, name: str) -> Dict[str, float]:
-        model_kwargs = {"device": self.device, "max_length": self.max_length}
-        if name.lower() == "modernbert":
-            model_kwargs["use_flash_attention"] = self.device.type == "cuda"
-        model = load_model(name, **model_kwargs)
+    def evaluate_model(self, model_name: str) -> Dict[str, float]:
+        print(f"Loading model weights for {model_name}...", flush=True)
+        model = load_model(
+            model_name,
+            model_name=str(ROOT / "experiments" / "runs" / model_name / "final_model"),
+            device=self.device,
+        )
         model.to(self.device)
 
-        labels, preds = self._predict(model, self.valid_df)
+        labels, preds, avg_conf = self._predict(model, self.valid_df)
         metrics = compute_classification_metrics(labels, preds)
 
         latency_texts = self.valid_df.sample(
@@ -114,13 +122,16 @@ class BenchmarkRunner:
 
         slang_accuracy = None
         if self.slang_df is not None and len(self.slang_df) > 0:
-            slang_labels, slang_preds = self._predict(model, self.slang_df)
+            slang_labels, slang_preds, _ = self._predict(model, self.slang_df)
             slang_metrics = compute_classification_metrics(slang_labels, slang_preds)
             slang_accuracy = slang_metrics["accuracy"]
 
         return {
-            "model": name,
+            "model": model_name,
             **metrics,
+            "sample_size": len(self.valid_df),
+            "error_rate": 1.0 - metrics["accuracy"],
+            "avg_conf": avg_conf,
             "latency_ms_per_tweet": latency_ms_per_tweet,
             "slang_accuracy": slang_accuracy,
         }
@@ -148,6 +159,9 @@ def main():
     parser.add_argument(
         "--output_csv", type=Path, default=Path("benchmark_results.csv")
     )
+    parser.add_argument(
+        "--append", action="store_true", help="Append results to existing CSV instead of overwriting."
+    )
     args = parser.parse_args()
 
     runner = BenchmarkRunner(
@@ -160,13 +174,24 @@ def main():
     )
 
     all_results: List[Dict[str, float]] = []
+    
+    # Load existing if appending
+    if args.append and args.output_csv.exists():
+        try:
+            existing_df = pd.read_csv(args.output_csv)
+            all_results = existing_df.to_dict(orient="records")
+            # Filter out models we are about to re-benchmark to avoid duplicates
+            all_results = [r for r in all_results if r.get("model") not in args.models]
+        except Exception as e:
+            print(f"Warning: Failed to load existing results for append: {e}")
+
     for name in args.models:
-        print(f"Benchmarking {name} on {runner.device}...")
+        print(f"Benchmarking {name} on {runner.device}...", flush=True)
         all_results.append(runner.evaluate_model(name))
 
     df = pd.DataFrame(all_results)
     df.to_csv(args.output_csv, index=False)
-    print(f"Saved results to {args.output_csv}")
+    print(f"Saved results to {args.output_csv}", flush=True)
 
 
 if __name__ == "__main__":
