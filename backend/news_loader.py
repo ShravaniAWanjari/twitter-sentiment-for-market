@@ -62,3 +62,43 @@ class NewsLoader:
 
     def fetch_latest_news(self) -> List[Dict[str, Any]]:
         return self.fetch_news(size=10)
+
+    def fetch_archive_headlines(
+        self,
+        from_date: str,
+        to_date: str,
+        query: str = "bitcoin",
+        size: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch historical Bitcoin headlines using the NewsData.io /archive endpoint.
+        from_date / to_date format: YYYY-MM-DD
+        """
+        if not self.api_key:
+            logger.warning("NEWSDATAIO_API_KEY not set — cannot fetch archive headlines.")
+            return []
+
+        archive_url = "https://newsdata.io/api/1/archive"
+        params = {
+            "apikey": self.api_key,
+            "q": query,
+            "language": "en",
+            "from_date": from_date,
+            "to_date": to_date,
+            "size": size,
+            "category": "business,technology",
+        }
+        try:
+            logger.info(f"Fetching archive headlines: {from_date} → {to_date}")
+            response = requests.get(archive_url, params=params, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            if data.get("status") == "success":
+                return data.get("results", [])
+            else:
+                logger.error(f"Archive API error: {data.get('message')}")
+                return []
+        except Exception as e:
+            logger.error(f"Failed to fetch archive headlines: {e}")
+            return []
+
