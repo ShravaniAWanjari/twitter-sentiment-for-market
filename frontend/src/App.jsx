@@ -545,7 +545,7 @@ export default function App() {
           {/* ── Explainability section ── */}
           <div className="explain-search-section card" style={{ marginTop: "2rem", borderTop: "1px solid #333", paddingTop: "2rem" }}>
             <h3>Explain a Custom Prediction</h3>
-            <p className="muted">Select a model and enter a headline — runs <strong>3 explainability methods simultaneously</strong> (Occlusion, Integrated Gradients, LIME).</p>
+            <p className="muted">Select a model and enter a headline — runs <strong>3 explainability methods simultaneously</strong> (Occlusion, Integrated Gradients, Grad×Input).</p>
             <div className="flex-group" style={{ marginBottom: "1rem" }}>
               <select
                 value={explainModel}
