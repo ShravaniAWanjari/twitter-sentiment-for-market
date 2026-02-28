@@ -63,6 +63,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
+    print(f"Loading model weights for {args.model}...", flush=True)
     # Use load_model for consistency and architecture handling
     model_wrapper = load_model(
         args.model, 
@@ -129,7 +130,7 @@ def main():
 
     all_df = pd.DataFrame(all_records)
     error_df = pd.DataFrame(error_records).sort_values("pred_confidence", ascending=False)
-    error_df.to_csv(args.output_csv, index=False)
+    error_df.to_csv(args.output_dir / "misclassified_samples.csv", index=False)
 
     summary = {
         "total_samples": len(all_df),
@@ -221,8 +222,8 @@ def main():
         )
     pd.DataFrame(index_rows).to_csv(pairs_dir / "index.csv", index=False)
 
-    print(f"Wrote {len(error_df)} misclassified samples to {args.output_csv}")
-    print(f"Wrote analysis CSVs to {args.output_dir}")
+    print(f"Wrote {len(error_df)} misclassified samples to {args.output_csv}", flush=True)
+    print(f"Wrote analysis CSVs to {args.output_dir}", flush=True)
 
 
 if __name__ == "__main__":
