@@ -567,7 +567,7 @@ export default function App() {
                 onClick={handleExplain}
                 disabled={explaining || !explainText}
               >
-                {explaining ? "Analysing with 3 methods…" : "⚡ Explain Prediction"}
+                {explaining ? "Analysing with 3 methods…" : "Explain Prediction"}
               </button>
             </div>
 

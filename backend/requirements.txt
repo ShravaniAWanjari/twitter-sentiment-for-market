@@ -3,3 +3,4 @@ uvicorn
 pandas
 accelerate>=1.1.0
 transformers[torch]
+fpdf2

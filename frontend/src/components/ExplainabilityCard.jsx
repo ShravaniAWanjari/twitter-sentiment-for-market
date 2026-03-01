@@ -59,7 +59,7 @@ function AgreementHeatmap({ agreement = [] }) {
                     <g key={ri}>
                         {/* Agreed indicator */}
                         <text x={4} y={y + rowH * 0.68} fontSize="9" fill={row.all_agree ? "#51cf66" : "#ff9f43"}>
-                            {row.all_agree ? "✓" : "~"}
+                            {row.all_agree ? "[OK]" : "[DIFF]"}
                         </text>
                         <text x={18} y={y + rowH * 0.68} fontSize="10" fill="#c4c8f0" fontFamily="monospace">
                             {row.token?.slice(0, 11)}
@@ -171,13 +171,13 @@ function MethodPane({ method, data }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div>
                     <p style={{ fontSize: "0.75rem", color: "#51cf66", fontWeight: 600, marginBottom: "0.4rem" }}>
-                        📈 Bullish Drivers
+                        Bullish Drivers
                     </p>
                     <TokenBarChart tokens={data.top_bullish} maxItems={5} height={130} />
                 </div>
                 <div>
                     <p style={{ fontSize: "0.75rem", color: "#ff6b6b", fontWeight: 600, marginBottom: "0.4rem" }}>
-                        📉 Bearish Signals
+                        Bearish Signals
                     </p>
                     <TokenBarChart tokens={data.top_bearish} maxItems={5} height={130} />
                 </div>
@@ -238,7 +238,7 @@ export default function ExplainabilityCard({ result, originalText }) {
         const mr = multiResult || result;
         const methodKeys = ["occlusion", "integrated_gradients", "grad_input"];
         const methodLabels = { occlusion: "Occlusion", integrated_gradients: "Integrated Gradients", grad_input: "Grad \u00d7 Input" };
-        const methodIcons = { occlusion: "🎭", integrated_gradients: "∇", grad_input: "∂f·x" };
+        const methodIcons = { occlusion: "O", integrated_gradients: "IG", grad_input: "GI" };
 
         return (
             <div className="explainability-card card" style={{ marginTop: "1.5rem" }}>
@@ -282,7 +282,7 @@ export default function ExplainabilityCard({ result, originalText }) {
                 {mr.method_comparison?.length > 0 && (
                     <div style={{ marginTop: "1.5rem", padding: "1rem", borderRadius: "8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <p style={{ fontSize: "0.78rem", color: "#8a8fb5", marginBottom: "0.6rem", fontWeight: 600 }}>
-                            📊 Cross-Method Token Agreement
+                            Cross-Method Token Agreement
                             <span style={{ fontSize: "0.68rem", fontWeight: 400, marginLeft: "8px" }}>
                                 ✓ = all methods agree on direction &nbsp; ~ = methods disagree
                             </span>
@@ -295,7 +295,7 @@ export default function ExplainabilityCard({ result, originalText }) {
                 {(mr.model_sensitivity || model_sensitivity) && (
                     <div style={{ marginTop: "1.2rem", padding: "1rem", borderRadius: "8px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                         <p style={{ fontSize: "0.78rem", color: "#8a8fb5", marginBottom: "0.7rem", fontWeight: 600 }}>
-                            ⚡ Model Sensitivity
+                            Model Sensitivity
                             <span style={{ fontSize: "0.68rem", fontWeight: 400, marginLeft: "8px" }}>
                                 How much does removing the key word change the outcome?
                             </span>
@@ -308,7 +308,7 @@ export default function ExplainabilityCard({ result, originalText }) {
                 {(mr.counterfactual?.found) && (
                     <div style={{ marginTop: "1rem", padding: "0.8rem 1rem", borderRadius: "8px", background: "rgba(255,107,107,0.07)", border: "1px solid rgba(255,107,107,0.2)" }}>
                         <p style={{ fontSize: "0.78rem", color: "#ff8fa3", marginBottom: "4px", fontWeight: 600 }}>
-                            🔄 Counterfactual Flip
+                            Counterfactual Flip
                         </p>
                         <p style={{ fontSize: "0.78rem", color: "#c4c8f0", margin: "0 0 4px", fontStyle: "italic" }}>
                             "{mr.counterfactual.edited_text}"
@@ -339,7 +339,7 @@ export default function ExplainabilityCard({ result, originalText }) {
                         disabled={loading || !originalText}
                         style={{ fontSize: "0.72rem" }}
                     >
-                        {loading ? "Running…" : "⚡ Deep Analysis (3 Methods)"}
+                        {loading ? "Running…" : "Deep Analysis (3 Methods)"}
                     </button>
                 </div>
             </div>

@@ -486,7 +486,7 @@ export default function BacktestView() {
                 <main className="dashboard-content">
                     {!result ? (
                         <div className="empty-state">
-                            <div className="pulse-icon">📊</div>
+                            <div className="pulse-icon">BT</div>
                             <h2>Ready for Simulation</h2>
                             <p>Configure your model and capital parameters to begin the 2024 → present BTC daily analysis.</p>
                         </div>
@@ -501,7 +501,7 @@ export default function BacktestView() {
                                 }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                                         <h3 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                                            <span style={{ fontSize: "1.2rem" }}>📖</span> Historical Case Study: {result.case_study.date}
+                                            CASE STUDY: {result.case_study.date}
                                         </h3>
                                         <div style={{
                                             padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: 700,
@@ -526,7 +526,7 @@ export default function BacktestView() {
                                                 <div>
                                                     <div style={{ fontSize: "0.65rem", color: "#8a8fb5", textTransform: "uppercase" }}>Model Verdict</div>
                                                     <div style={{ color: result.case_study.prediction === "Bullish" ? "#51cf66" : "#ff6b6b", fontWeight: 700, fontSize: "1rem" }}>
-                                                        {result.case_study.prediction === "Bullish" ? "🐂 Bullish" : "🐻 Bearish"}
+                                                        {result.case_study.prediction === "Bullish" ? "[BULLISH]" : "[BEARISH]"}
                                                     </div>
                                                 </div>
                                                 <div>
@@ -539,7 +539,7 @@ export default function BacktestView() {
                                                 </div>
                                             </div>
                                             <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-                                                <span style={{ color: "#818cf8", fontSize: "1rem" }}>💡</span>
+                                                <span style={{ color: "#818cf8", fontSize: "0.8rem", fontWeight: 700 }}>NOTE:</span>
                                                 <p style={{ fontSize: "0.82rem", color: "#c4c8f0", fontStyle: "italic", margin: 0, lineHeight: 1.4 }}>{result.case_study.outcome_desc}</p>
                                             </div>
                                         </div>
@@ -609,42 +609,65 @@ export default function BacktestView() {
                                     {/* Baseline vs NLP comparison card */}
                                     <section className="card">
                                         <h3>Strategy Comparison</h3>
-                                        {["total_return", "sharpe_ratio", "max_drawdown", "win_rate"].map(metric => {
-                                            const base = result.metrics?.baseline?.[metric] || 0;
-                                            const gated = result.metrics?.gated?.[metric] || 0;
+                                        <div style={{ marginTop: "1rem" }}>
+                                            {["total_return", "sharpe_ratio", "max_drawdown", "win_rate"].map(metric => {
+                                                const base = result.metrics?.baseline?.[metric] || 0;
+                                                const gated = result.metrics?.gated?.[metric] || 0;
 
-                                            // Scale bars relative to each other per metric
-                                            const maxAbs = Math.max(Math.abs(base), Math.abs(gated), 0.0001);
-                                            const baseWidth = (Math.abs(base) / maxAbs) * 100;
-                                            const gatedWidth = (Math.abs(gated) / maxAbs) * 100;
+                                                const isDiverging = ["total_return", "sharpe_ratio"].includes(metric);
+                                                let maxScale = Math.max(Math.abs(base), Math.abs(gated), 0.001);
+                                                if (metric === "win_rate") maxScale = 1.0;
+                                                if (metric === "max_drawdown") maxScale = Math.max(maxScale, 0.1);
 
-                                            return (
-                                                <div key={metric} style={{ marginBottom: "0.8rem" }}>
-                                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "#8a8fb5", marginBottom: "4px" }}>
-                                                        <span>{metric.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
-                                                        <span>
-                                                            <span style={{ color: "#999", marginRight: "8px" }}>
-                                                                {metric === "sharpe_ratio" ? base.toFixed(2) : formatPct(base)}
+                                                const getBarParams = (val) => {
+                                                    const absVal = Math.abs(val);
+                                                    const wPct = (absVal / maxScale) * (isDiverging ? 50 : 100);
+                                                    return {
+                                                        width: `${Math.min(isDiverging ? 50 : 100, wPct)}%`,
+                                                        left: isDiverging ? (val < 0 ? `${50 - wPct}%` : "50%") : "0%"
+                                                    };
+                                                };
+
+                                                const bpBase = getBarParams(base);
+                                                const bpGated = getBarParams(gated);
+
+                                                return (
+                                                    <div key={metric} style={{ marginBottom: "1rem" }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", color: "#8a8fb5", marginBottom: "6px" }}>
+                                                            <span>{metric.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</span>
+                                                            <span>
+                                                                <span style={{ color: "#999", marginRight: "10px" }}>
+                                                                    {metric === "sharpe_ratio" ? base.toFixed(2) : formatPct(base)}
+                                                                </span>
+                                                                <span style={{ color: "#a5b4fc", fontWeight: 700 }}>
+                                                                    {metric === "sharpe_ratio" ? gated.toFixed(2) : formatPct(gated)}
+                                                                </span>
                                                             </span>
-                                                            <span style={{ color: "#818cf8", fontWeight: 600 }}>
-                                                                {metric === "sharpe_ratio" ? gated.toFixed(2) : formatPct(gated)}
-                                                            </span>
-                                                        </span>
-                                                    </div>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                                                        <div style={{ height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px" }}>
-                                                            <div style={{ width: `${baseWidth}%`, background: "#555", height: "100%", borderRadius: "2px", opacity: 0.8 }} />
                                                         </div>
-                                                        <div style={{ height: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "2px" }}>
-                                                            <div style={{ width: `${gatedWidth}%`, background: "#818cf8", height: "100%", borderRadius: "2px" }} />
+                                                        <div style={{ height: "16px", background: "rgba(255,255,255,0.03)", borderRadius: "4px", position: "relative", overflow: "hidden", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                                            {isDiverging && (
+                                                                <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.15)", zIndex: 1 }} />
+                                                            )}
+                                                            <div style={{
+                                                                position: "absolute", top: "2px", height: "5px",
+                                                                left: bpBase.left, width: bpBase.width,
+                                                                background: "#999",
+                                                                opacity: 0.8, borderRadius: "2px", transition: "all 0.4s ease"
+                                                            }} />
+                                                            <div style={{
+                                                                position: "absolute", bottom: "2px", height: "5px",
+                                                                left: bpGated.left, width: bpGated.width,
+                                                                background: "#a5b4fc",
+                                                                borderRadius: "2px", transition: "all 0.4s ease"
+                                                            }} />
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                         <p className="tiny muted" style={{ marginTop: "0.8rem" }}>
                                             <span style={{ color: "#999" }}>■</span> Baseline &nbsp;
-                                            <span style={{ color: "#818cf8" }}>■</span> NLP Augmented
+                                            <span style={{ color: "#a5b4fc" }}>■</span> NLP Augmented
                                         </p>
                                     </section>
                                 </div>
@@ -671,7 +694,7 @@ export default function BacktestView() {
 
                                 {hlError && (
                                     <div style={{ background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.3)", borderRadius: "8px", padding: "0.75rem 1rem", color: "#ff8fa3", fontSize: "0.85rem" }}>
-                                        ⚠️ {hlError}
+                                        ERROR: {hlError}
                                     </div>
                                 )}
 
@@ -718,7 +741,7 @@ export default function BacktestView() {
                                                         display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                                                         fontSize: "1.4rem",
                                                     }}>
-                                                        {selectedHl.sentiment === "Bullish" ? "🐂" : selectedHl.sentiment === "Bearish" ? "🐻" : "⚖️"}
+                                                        {selectedHl.sentiment === "Bullish" ? "B" : selectedHl.sentiment === "Bearish" ? "S" : "N"}
                                                     </div>
                                                     <div>
                                                         <div style={{ fontSize: "1.1rem", fontWeight: 700, color: selectedHl.sentiment === "Bullish" ? "#51cf66" : selectedHl.sentiment === "Bearish" ? "#ff6b6b" : "#ffc300" }}>

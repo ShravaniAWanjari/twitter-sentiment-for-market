@@ -63,6 +63,10 @@ class NewsLoader:
     def fetch_latest_news(self) -> List[Dict[str, Any]]:
         return self.fetch_news(size=10)
 
+    def fetch_bitcoin_headlines(self, size: int = 5) -> List[Dict[str, Any]]:
+        """A simple wrapper to fetch latest Bitcoin/Crypto news."""
+        return self.fetch_news(coin="btc", size=size)
+
     def fetch_archive_headlines(
         self,
         from_date: str,

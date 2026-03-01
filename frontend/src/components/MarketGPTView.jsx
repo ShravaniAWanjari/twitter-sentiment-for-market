@@ -10,13 +10,59 @@ function RenderMarkdown({ text }) {
     while (i < lines.length) {
         const line = lines[i];
 
+        // Tables
+        if (line.trim().startsWith("|")) {
+            const tableRows = [];
+            let headerRow = null;
+
+            // Look for table block
+            while (i < lines.length && lines[i].trim().startsWith("|")) {
+                const row = lines[i].trim().split("|").filter((_, idx, arr) => idx > 0 && idx < arr.length - 1).map(c => c.trim());
+
+                if (lines[i].includes("---")) {
+                    // Skip separator
+                } else if (!headerRow) {
+                    headerRow = row;
+                } else {
+                    tableRows.push(row);
+                }
+                i++;
+            }
+
+            if (headerRow) {
+                elements.push(
+                    <div key={`table-${i}`} style={{ overflowX: "auto", margin: "1.2rem 0", background: "rgba(255,255,255,0.02)", borderRadius: "8px", border: "1px solid rgba(129,140,248,0.2)" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", textAlign: "left" }}>
+                            <thead>
+                                <tr style={{ background: "rgba(129,140,248,0.08)" }}>
+                                    {headerRow.map((cell, idx) => (
+                                        <th key={idx} style={{ padding: "10px 12px", borderBottom: "1px solid rgba(129,140,248,0.2)", color: "#a5b4fc", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: "0.7rem" }}>{parseBold(cell)}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {tableRows.map((row, rowIdx) => (
+                                    <tr key={rowIdx} style={{ borderBottom: rowIdx === tableRows.length - 1 ? "none" : "1px solid rgba(255,255,255,0.03)", background: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)" }}>
+                                        {row.map((cell, cellIdx) => (
+                                            <td key={cellIdx} style={{ padding: "10px 12px", color: cellIdx === 0 ? "#fff" : "#c4c8f0" }}>{parseBold(cell)}</td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            }
+            continue;
+        }
+
         // Headings
         if (line.startsWith("### ")) {
-            elements.push(<h4 key={i} style={{ color: "#818cf8", margin: "1.2rem 0 0.4rem", fontSize: "0.9rem", fontWeight: 700, borderBottom: "1px solid rgba(129,140,248,0.15)", paddingBottom: "0.3rem" }}>{parseBold(line.slice(4))}</h4>);
+            elements.push(<h4 key={i} style={{ color: "#a5b4fc", margin: "1.2rem 0 0.4rem", fontSize: "0.9rem", fontWeight: 700, borderBottom: "1px solid rgba(129,140,248,0.15)", paddingBottom: "0.3rem" }}>{parseBold(line.slice(4))}</h4>);
             i++; continue;
         }
         if (line.startsWith("## ")) {
-            elements.push(<h3 key={i} style={{ color: "#818cf8", margin: "1.2rem 0 0.5rem", fontSize: "1rem", fontWeight: 700 }}>{parseBold(line.slice(3))}</h3>);
+            elements.push(<h3 key={i} style={{ color: "#a5b4fc", margin: "1.2rem 0 0.5rem", fontSize: "1rem", fontWeight: 700 }}>{parseBold(line.slice(3))}</h3>);
             i++; continue;
         }
 
@@ -25,7 +71,7 @@ function RenderMarkdown({ text }) {
             const bullet = line.trimStart().slice(2);
             elements.push(
                 <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "4px", paddingLeft: "0.5rem" }}>
-                    <span style={{ color: "#818cf8", flexShrink: 0 }}>•</span>
+                    <span style={{ color: "#a5b4fc", flexShrink: 0 }}>•</span>
                     <span style={{ fontSize: "0.84rem", color: "#c4c8f0", lineHeight: 1.6 }}>{parseBold(bullet)}</span>
                 </div>
             );

@@ -63,7 +63,7 @@ export default function AnalyzeView({ models }) {
     const sentimentConfig = {
         Bullish: { color: "#51cf66", bg: "rgba(81,207,102,0.12)", icon: "📈", label: "BULLISH" },
         Bearish: { color: "#ff6b6b", bg: "rgba(255,107,107,0.12)", icon: "📉", label: "BEARISH" },
-        Neutral: { color: "#fcc419", bg: "rgba(252,196,25,0.12)", icon: "➖", label: "NEUTRAL" },
+        Neutral: { color: "#fcc419", bg: "rgba(252,196,25,0.12)", label: "NEUTRAL" },
     };
 
     const getSentimentStyle = (s) => sentimentConfig[s] || sentimentConfig.Neutral;
@@ -74,7 +74,7 @@ export default function AnalyzeView({ models }) {
             <section className="ha-hero card">
                 <div className="ha-hero-left">
                     <div className="ha-icon-wrap">
-                        <span className="ha-icon">₿</span>
+                        <span className="ha-icon" style={{ fontSize: "1.5rem" }}>₿</span>
                     </div>
                     <div>
                         <h2 className="ha-title">Bitcoin Headline Analyzer</h2>
@@ -95,14 +95,14 @@ export default function AnalyzeView({ models }) {
                             Fetching...
                         </>
                     ) : (
-                        <>⚡ Fetch Live Headlines</>
+                        <>Fetch Live Headlines</>
                     )}
                 </button>
             </section>
 
             {fetchError && (
                 <div className="ha-error-banner">
-                    <span>⚠️</span> {fetchError}
+                    <span>ERROR:</span> {fetchError}
                 </div>
             )}
 
@@ -214,7 +214,7 @@ export default function AnalyzeView({ models }) {
                     {/* Power Words Grid */}
                     <div className="ha-power-grid">
                         <section className="ha-power-card card">
-                            <h3 style={{ color: "#51cf66" }}>⬆ Top Positive Drivers</h3>
+                            <h3 style={{ color: "#51cf66" }}>↑ Top Positive Drivers</h3>
                             <p className="muted" style={{ marginTop: 0, fontSize: "0.8rem" }}>
                                 Tokens that push the model toward <strong>{result.sentiment}</strong>
                             </p>
@@ -236,7 +236,7 @@ export default function AnalyzeView({ models }) {
                         </section>
 
                         <section className="ha-power-card card">
-                            <h3 style={{ color: "#ff8f8f" }}>⬇ Top Negative Drivers</h3>
+                            <h3 style={{ color: "#ff8f8f" }}>↓ Top Negative Drivers</h3>
                             <p className="muted" style={{ marginTop: 0, fontSize: "0.8rem" }}>
                                 Tokens that oppose the predicted sentiment
                             </p>
@@ -323,7 +323,7 @@ export default function AnalyzeView({ models }) {
             {!fetching && headlines.length === 0 && !result && (
                 <section className="ha-empty card">
                     <div className="ha-empty-inner">
-                        <div className="ha-empty-icon">📡</div>
+                        <div className="ha-empty-icon">₿</div>
                         <h3>Ready to Analyze</h3>
                         <p className="muted">
                             Click <strong>"Fetch Live Headlines"</strong> to pull the latest Bitcoin news, then select a headline to run deep sentiment analysis.

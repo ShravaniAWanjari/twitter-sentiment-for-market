@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
 
 const fmt = (v, d = 4) => {
     if (v === null || v === undefined || v === "") return "-";
@@ -24,7 +28,7 @@ function EmptySection({ sectionNum, title, tabName }) {
                 background: "rgba(255,255,255,0.02)",
                 border: "1px dashed rgba(255,255,255,0.08)"
             }}>
-                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.4 }}>📭</div>
+                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem", opacity: 0.4 }}>Data Pending</div>
                 <p style={{ color: "#8a8fb5", fontSize: "0.88rem", margin: 0 }}>
                     Please interact with <strong style={{ color: "#818cf8" }}>{tabName}</strong> to see final summary
                 </p>
@@ -40,6 +44,7 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
     const [chatSummary, setChatSummary] = useState("");
     const [loading, setLoading] = useState(true);
     const [downloading, setDownloading] = useState(false);
+    const [errorData, setErrorData] = useState({ length: [], signal: [], confidence: [] });
 
     const bestModel = leaderboard.length > 0 ? leaderboard[0] : null;
     const hasBenchmark = benchmark.length > 0;
@@ -88,11 +93,27 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
                         const chatRes = await fetch("/api/chat", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ query: "Write a concise 3-paragraph executive summary of the current session results as a quant researcher. Cover model performance, backtest outcomes, and strategic recommendations." })
+                            body: JSON.stringify({ query: "Write a concise 3-paragraph executive summary of the current session results as a quant researcher. Cover model performance, backtest outcomes, and strategic recommendations. DO NOT USE ANY EMOJIS." })
                         });
                         const chatData = await chatRes.json();
                         setChatSummary(chatData.response || "");
                     } catch (e) { console.warn("Chat summary failed:", e); }
+                }
+
+                // 4. Fetch Deep Error Attribution for Best Model
+                if (bestModel?.model) {
+                    try {
+                        const [len, sig, conf] = await Promise.all([
+                            fetch(`/api/errors/error_by_length?model=${bestModel.model}`).then(r => r.json()),
+                            fetch(`/api/errors/error_by_signal?model=${bestModel.model}`).then(r => r.json()),
+                            fetch(`/api/errors/error_by_confidence?model=${bestModel.model}`).then(r => r.json()),
+                        ]);
+                        setErrorData({
+                            length: len?.rows || [],
+                            signal: sig?.rows || [],
+                            confidence: conf?.rows || []
+                        });
+                    } catch (e) { console.warn("Error attribution fetch failed:", e); }
                 }
             } catch (e) {
                 console.error("Session analysis load failed:", e);
@@ -102,29 +123,47 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
     }, [bestModel?.model, hasBenchmark]);
 
     const handleDownloadPDF = async () => {
+        if (!reportRef.current) return;
         setDownloading(true);
         try {
-            const res = await fetch("/api/pdf");
-            if (res.ok) {
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "Session_Analysis_Report.pdf";
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } else {
-                alert("PDF generation failed. Run a backtest first.");
-            }
+            // First scroll to top to ensure canvas captures everything correctly
+            window.scrollTo(0, 0);
+
+            // Hide the download button during capture so it doesn't appear in PDF
+            const downloadBtn = document.getElementById("pdf-download-btn");
+            if (downloadBtn) downloadBtn.style.display = "none";
+
+            const canvas = await html2canvas(reportRef.current, {
+                scale: 2, // higher resolution
+                useCORS: true,
+                backgroundColor: "#000000", // Match app background
+            });
+
+            if (downloadBtn) downloadBtn.style.display = ""; // Restore button
+
+            const imgData = canvas.toDataURL("image/png");
+
+            // A4 size: 210 x 297 mm
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save("Session_Analysis_Report.pdf");
+
         } catch (e) {
-            alert("Failed to download PDF: " + e.message);
-        } finally { setDownloading(false); }
+            alert("Failed to capture PDF: " + e.message);
+            console.error(e);
+        } finally {
+            setDownloading(false);
+        }
     };
+
 
     if (loading) {
         return (
             <div className="card" style={{ textAlign: "center", padding: "4rem" }}>
-                <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📊</div>
+                <div style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>ANALYSIS</div>
                 <p style={{ color: "#818cf8", fontWeight: 600 }}>Compiling Session Analysis Report...</p>
                 <p className="tiny muted">Aggregating benchmarks, backtest results, and live sentiment data</p>
             </div>
@@ -147,12 +186,13 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
                         </p>
                     </div>
                     <button
+                        id="pdf-download-btn"
                         className="btn primary"
                         onClick={handleDownloadPDF}
                         disabled={downloading}
                         style={{ whiteSpace: "nowrap" }}
                     >
-                        {downloading ? "Generating…" : "⬇ Download PDF"}
+                        {downloading ? "Generating…" : "Download PDF"}
                     </button>
                 </div>
             </div>
@@ -215,7 +255,7 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
                         <tbody>
                             {leaderboard.map((r, i) => (
                                 <tr key={r.model} style={i === 0 ? { background: "rgba(129,140,248,0.08)" } : {}}>
-                                    <td><strong>{i === 0 ? "🏆 " : ""}{r.model}</strong></td>
+                                    <td><strong>{r.model}</strong></td>
                                     <td style={i === 0 ? { color: "#818cf8", fontWeight: 700 } : {}}>{fmt(r.f1_macro)}</td>
                                     <td>{fmt(r.accuracy)}</td>
                                     <td>{fmt(r.latency_ms_per_tweet, 2)}</td>
@@ -223,6 +263,46 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
                             ))}
                         </tbody>
                     </table>
+
+                    {/* Deep Error Attribution Sub-section */}
+                    <div style={{ marginTop: "1.5rem", paddingTop: "1.2rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                        <h4 style={{ fontSize: "0.9rem", color: "#818cf8", marginBottom: "0.8rem" }}>Deep Error Attribution: {bestModel.model}</h4>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem" }}>
+                            <div style={{ padding: "0.6rem", borderRadius: "8px", background: "rgba(0,0,0,0.15)" }}>
+                                <div style={{ fontSize: "0.65rem", color: "#8a8fb5", textTransform: "uppercase", marginBottom: "6px" }}>By Text Length</div>
+                                <table className="tiny" style={{ fontSize: "0.7rem", marginTop: 0 }}>
+                                    <thead><tr><th>Len</th><th>Err</th></tr></thead>
+                                    <tbody>
+                                        {errorData.length.slice(0, 4).map((r, i) => (
+                                            <tr key={i}><td>{r.length_bucket}</td><td style={{ color: "#ff8f8f" }}>{fmt(r.error_rate)}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style={{ padding: "0.6rem", borderRadius: "8px", background: "rgba(0,0,0,0.15)" }}>
+                                <div style={{ fontSize: "0.65rem", color: "#8a8fb5", textTransform: "uppercase", marginBottom: "6px" }}>By Signal</div>
+                                <table className="tiny" style={{ fontSize: "0.7rem", marginTop: 0 }}>
+                                    <thead><tr><th>Sig</th><th>Err</th></tr></thead>
+                                    <tbody>
+                                        {errorData.signal.slice(0, 4).map((r, i) => (
+                                            <tr key={i}><td>{r.value}</td><td style={{ color: "#ff8f8f" }}>{fmt(r.error_rate)}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div style={{ padding: "0.6rem", borderRadius: "8px", background: "rgba(0,0,0,0.15)" }}>
+                                <div style={{ fontSize: "0.65rem", color: "#8a8fb5", textTransform: "uppercase", marginBottom: "6px" }}>By Confidence</div>
+                                <table className="tiny" style={{ fontSize: "0.7rem", marginTop: 0 }}>
+                                    <thead><tr><th>Conf</th><th>Err</th></tr></thead>
+                                    <tbody>
+                                        {errorData.confidence.slice(0, 4).map((r, i) => (
+                                            <tr key={i}><td>{r.confidence_bucket}</td><td style={{ color: "#ff8f8f" }}>{fmt(r.error_rate)}</td></tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             ) : (
                 <EmptySection sectionNum={1} title="Model Benchmark Overview" tabName="Benchmarks" />
@@ -340,65 +420,70 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
                         border: "1px solid rgba(129,140,248,0.12)",
                         fontSize: "0.88rem",
                         color: "#c4c8f0",
-                        lineHeight: 1.7,
-                        whiteSpace: "pre-wrap"
+                        lineHeight: 1.7
                     }}>
-                        {chatSummary}
+                        <ReactMarkdown>
+                            {chatSummary}
+                        </ReactMarkdown>
                     </div>
                 </div>
             ) : (
                 <EmptySection sectionNum={4} title="AI-Generated Research Summary" tabName="Market GPT" />
-            )}
+            )
+            }
 
             {/* ─── Section 5: Final Verdict ─── */}
-            {bestModel ? (
-                <div className="card" style={{ marginBottom: "1.5rem", background: "linear-gradient(135deg, rgba(129,140,248,0.08) 0%, rgba(81,207,102,0.04) 100%)", border: "1px solid rgba(129,140,248,0.2)" }}>
-                    <h3 style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.7rem", marginBottom: "1.2rem" }}>
-                        5. Final Verdict
-                    </h3>
-                    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1.5rem", alignItems: "center" }}>
-                        <div style={{
-                            width: 80, height: 80, borderRadius: "50%",
-                            border: "3px solid #818cf8",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: "2rem", background: "rgba(129,140,248,0.08)"
-                        }}>🏆</div>
-                        <div>
-                            <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#818cf8", marginBottom: "4px" }}>
-                                {bestModel.model}
-                            </div>
-                            <p style={{ color: "#c4c8f0", fontSize: "0.88rem", lineHeight: 1.6, margin: 0 }}>
-                                <strong>{bestModel.model}</strong> achieved the highest F1 Macro of <strong style={{ color: "#51cf66" }}>{fmt(bestModel.f1_macro)}</strong> with
-                                an accuracy of <strong>{fmt(bestModel.accuracy)}</strong> at <strong>{fmt(bestModel.latency_ms_per_tweet, 2)}ms</strong> per headline.
-                                {backtest && (
-                                    <> When deployed as the NLP gating backbone in backtesting, it produced a total return of <strong style={{ color: (gated.total_return || 0) >= 0 ? "#51cf66" : "#ff6b6b" }}>{fmtPct(gated.total_return)}</strong> with
-                                        a Sharpe Ratio of <strong style={{ color: "#818cf8" }}>{(gated.sharpe_ratio || 0).toFixed(2)}</strong>, compared to the baseline return
-                                        of {fmtPct(baseline.total_return)}.</>
-                                )}
-                            </p>
-                            <div style={{ display: "flex", gap: "1rem", marginTop: "0.8rem" }}>
-                                {[
-                                    { label: "F1 Macro", val: fmt(bestModel.f1_macro), color: "#818cf8" },
-                                    { label: "Accuracy", val: fmt(bestModel.accuracy), color: "#51cf66" },
-                                    { label: "Latency", val: fmt(bestModel.latency_ms_per_tweet, 2) + "ms", color: "#ff9f43" },
-                                ].map(t => (
-                                    <div key={t.label} style={{ padding: "6px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                        <div style={{ fontSize: "0.6rem", color: "#8a8fb5", textTransform: "uppercase" }}>{t.label}</div>
-                                        <div style={{ fontSize: "0.95rem", fontWeight: 700, color: t.color }}>{t.val}</div>
-                                    </div>
-                                ))}
+            {
+                bestModel ? (
+                    <div className="card" style={{ marginBottom: "1.5rem", background: "linear-gradient(135deg, rgba(129,140,248,0.08) 0%, rgba(81,207,102,0.04) 100%)", border: "1px solid rgba(129,140,248,0.2)" }}>
+                        <h3 style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.7rem", marginBottom: "1.2rem" }}>
+                            5. Final Verdict
+                        </h3>
+                        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1.5rem", alignItems: "center" }}>
+                            <div style={{
+                                width: 80, height: 80, borderRadius: "50%",
+                                border: "3px solid #818cf8",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                fontSize: "1.2rem", background: "rgba(129,140,248,0.08)",
+                                fontWeight: 800, color: "#818cf8"
+                            }}>TOP</div>
+                            <div>
+                                <div style={{ fontSize: "1.3rem", fontWeight: 800, color: "#818cf8", marginBottom: "4px" }}>
+                                    {bestModel.model}
+                                </div>
+                                <p style={{ color: "#c4c8f0", fontSize: "0.88rem", lineHeight: 1.6, margin: 0 }}>
+                                    <strong>{bestModel.model}</strong> achieved the highest F1 Macro of <strong style={{ color: "#51cf66" }}>{fmt(bestModel.f1_macro)}</strong> with
+                                    an accuracy of <strong>{fmt(bestModel.accuracy)}</strong> at <strong>{fmt(bestModel.latency_ms_per_tweet, 2)}ms</strong> per headline.
+                                    {backtest && (
+                                        <> When deployed as the NLP gating backbone in backtesting, it produced a total return of <strong style={{ color: (gated.total_return || 0) >= 0 ? "#51cf66" : "#ff6b6b" }}>{fmtPct(gated.total_return)}</strong> with
+                                            a Sharpe Ratio of <strong style={{ color: "#818cf8" }}>{(gated.sharpe_ratio || 0).toFixed(2)}</strong>, compared to the baseline return
+                                            of {fmtPct(baseline.total_return)}.</>
+                                    )}
+                                </p>
+                                <div style={{ display: "flex", gap: "1rem", marginTop: "0.8rem" }}>
+                                    {[
+                                        { label: "F1 Macro", val: fmt(bestModel.f1_macro), color: "#818cf8" },
+                                        { label: "Accuracy", val: fmt(bestModel.accuracy), color: "#51cf66" },
+                                        { label: "Latency", val: fmt(bestModel.latency_ms_per_tweet, 2) + "ms", color: "#ff9f43" },
+                                    ].map(t => (
+                                        <div key={t.label} style={{ padding: "6px 14px", borderRadius: "8px", background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                            <div style={{ fontSize: "0.6rem", color: "#8a8fb5", textTransform: "uppercase" }}>{t.label}</div>
+                                            <div style={{ fontSize: "0.95rem", fontWeight: 700, color: t.color }}>{t.val}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            ) : (
-                <EmptySection sectionNum={5} title="Final Verdict" tabName="Benchmarks" />
-            )}
+                ) : (
+                    <EmptySection sectionNum={5} title="Final Verdict" tabName="Benchmarks" />
+                )
+            }
 
             {/* Report Disclaimer */}
             <p className="tiny muted" style={{ textAlign: "center", marginTop: "2rem", paddingBottom: "1rem" }}>
                 This analysis is for research purposes only and does not constitute financial advice.
             </p>
-        </div>
+        </div >
     );
 }

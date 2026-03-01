@@ -1,14 +1,25 @@
 from __future__ import annotations
-
+import sys
+import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Any
 
-import sys
-import logging
+# Ensure backend directory is in path for imports
+REPO_ROOT = Path(__file__).resolve().parent.parent
+LOG_FILE = REPO_ROOT / "backend.log"
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger(__name__).info("Python executable: %s", sys.executable)
-logging.getLogger(__name__).info("sys.path: %s", sys.path)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+logger.info("Python executable: %s", sys.executable)
+logger.info("sys.path: %s", sys.path)
 
 
 from fastapi import FastAPI, HTTPException
@@ -395,10 +406,3 @@ def grounded_chat(payload: Dict[str, Any]):
     return {"response": response}
 
 
-@app.get("/api/pdf")
-def download_pdf():
-    run = backtest_engine.get_latest_run()
-    if not run:
-        raise HTTPException(status_code=404, detail="No run data to export.")
-    pdf_path = analysis_engine.generate_pdf_report(run)
-    return FileResponse(pdf_path, filename="Analysis_Report.pdf")
