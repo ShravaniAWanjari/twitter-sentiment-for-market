@@ -397,8 +397,25 @@ def grounded_chat(payload: Dict[str, Any]):
 
 @app.get("/api/pdf")
 def download_pdf():
-    run = backtest_engine.get_latest_run()
-    if not run:
-        raise HTTPException(status_code=404, detail="No run data to export.")
-    pdf_path = analysis_engine.generate_pdf_report(run)
-    return FileResponse(pdf_path, filename="Analysis_Report.pdf")
+    try:
+        run = backtest_engine.get_latest_run()
+        if not run:
+            raise HTTPException(status_code=404, detail="No run data to export.")
+        
+        # Also load benchmark results for the PDF
+        bench_data = []
+        bench_path = REPO_ROOT / "benchmark_results.csv"
+        if bench_path.exists():
+            try:
+                import pandas as pd
+                df = pd.read_csv(bench_path)
+                bench_data = df.to_dict(orient="records")
+            except:
+                pass
+                
+        pdf_path = analysis_engine.generate_pdf_report(run, benchmark_data=bench_data)
+        return FileResponse(pdf_path, filename="Session_Analysis_Report.pdf")
+    except Exception as e:
+        import traceback
+        logger.error(f"PDF API error: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))

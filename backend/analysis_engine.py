@@ -1,8 +1,11 @@
+import sys
 import os
 import json
 import logging
+import traceback
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Any, Optional
+from datetime import datetime
 
 import torch
 import torch.nn.functional as F
@@ -516,38 +519,228 @@ class AnalysisEngine:
         return result
 
 
-    def generate_pdf_report(self, run_artifact: Dict[str, Any]) -> Path:
+    def generate_pdf_report(self, run: Dict[str, Any], benchmark_data: Optional[List[Dict[str, Any]]] = None) -> Path:
+        """Generates a professional PDF report mirroring the Session Analysis dashboard."""
         try:
-            from fpdf import FPDF
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, "Quant NLP Research - Backtest Analysis Report", 0, 1, "C")
-            pdf.ln(10)
+            try:
+                from fpdf import FPDF
+            except ImportError:
+                raise RuntimeError("PDF generation requires fpdf2.")
             
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Model: {run_artifact.get('model')}", 0, 1)
-            pdf.cell(0, 10, f"Strategy: {run_artifact.get('strategy')}", 0, 1)
-            pdf.cell(0, 10, f"Timestamp: {run_artifact.get('timestamp')}", 0, 1)
-            
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Strategy Metrics", 0, 1)
-            pdf.set_font("Arial", "", 10)
-            
-            metrics = run_artifact.get("metrics", {})
-            for stype, m in metrics.items():
-                pdf.cell(0, 8, f"{stype.upper()}: Ret={m.get('total_return',0):.2%}, Sharpe={m.get('sharpe_ratio',0):.2f}", 0, 1)
+            def clean_txt(s: Any) -> str:
+                if s is None: return ""
+                # fpdf2 default fonts only support basic latin range without extra setup
+                return str(s).encode("ascii", "ignore").decode("ascii")
 
-            pdf_path = self.results_dir / "Analysis_Report.pdf"
+            pdf = FPDF()
+            pdf.add_page("P") # Portrait
+            # Colors & Constants (Premium Research Theme)
+            ACCENT_COLOR = (99, 102, 241)  # High-fidelity Indigo
+            TEXT_COLOR = (30, 41, 59)      # Slate 800
+            SUBTEXT_COLOR = (100, 116, 139) # Slate 500
+            BORDER_COLOR = (226, 232, 240) # Slate 200
+            SUCCESS_COLOR = (16, 185, 129) # Emerald 500
+            DANGER_COLOR = (244, 63, 94)   # Rose 500
+
+            def add_header(title, num):
+                pdf.set_xy(10, pdf.get_y() + 5)
+                # Left accent bar
+                pdf.set_fill_color(*ACCENT_COLOR)
+                pdf.rect(10, pdf.get_y(), 1.5, 7, "F")
+                
+                pdf.set_x(14)
+                pdf.set_font("helvetica", "B", 11)
+                pdf.set_text_color(*ACCENT_COLOR)
+                pdf.cell(0, 7, clean_txt(f"{num}. {title.upper()}"), ln=True)
+                pdf.ln(1)
+                pdf.set_text_color(*TEXT_COLOR)
+
+            # ─── FRONT PAGE / HEADER ───
+            pdf.set_fill_color(248, 250, 252) # Slate 50
+            pdf.rect(0, 0, 210, 35, "F")
+            pdf.set_fill_color(*ACCENT_COLOR) # Indigo accent
+            pdf.rect(5, 5, 1, 25, "F") # Design flair
+            
+            pdf.set_xy(12, 10)
+            pdf.set_font("helvetica", "B", 20)
+            pdf.set_text_color(*TEXT_COLOR)
+            pdf.cell(0, 12, "QUANT RESEARCH SESSION REPORT", ln=True, align="L")
+            
+            pdf.set_font("helvetica", size=9)
+            pdf.set_text_color(*SUBTEXT_COLOR)
+            pdf.set_x(12)
+            pdf.cell(0, 5, f"SYSTEM ANALYSIS ID: {run.get('run_id','SR-'+datetime.now().strftime('%H%M')).upper()} | GENERATED: {datetime.now().strftime('%d %b %Y %H:%M:%S').upper()}", ln=True)
+            pdf.ln(12)
+
+            # ─── 1. BENCHMARK LEADERBOARD ───
+            add_header("Model Performance Leaderboard", 1)
+            if benchmark_data:
+                sorted_bench = sorted(benchmark_data, key=lambda x: x.get('f1_macro', 0), reverse=True)
+                pdf.set_font("helvetica", "B", 8)
+                pdf.set_fill_color(241, 245, 249) # Header row
+                pdf.set_text_color(*SUBTEXT_COLOR)
+                
+                w = [60, 30, 30, 30, 40]
+                pdf.cell(w[0], 9, " ARCHITECTURE", 1, 0, "L", True)
+                pdf.cell(w[1], 9, "F1 SCORE", 1, 0, "C", True)
+                pdf.cell(w[2], 9, "ACCURACY", 1, 0, "C", True)
+                pdf.cell(w[3], 9, "LATENCY", 1, 0, "C", True)
+                pdf.cell(w[4], 9, "STATUS", 1, 1, "C", True)
+                
+                pdf.set_font("helvetica", size=9)
+                pdf.set_text_color(*TEXT_COLOR)
+                for i, row in enumerate(sorted_bench[:3]): # Top 3
+                    is_top = (i == 0)
+                    if is_top: pdf.set_font("helvetica", "B", 9)
+                    pdf.cell(w[0], 9, f"  {clean_txt(row.get('model'))}", 1)
+                    pdf.cell(w[1], 9, f"{row.get('f1_macro',0):.3f}", 1, 0, "C")
+                    pdf.cell(w[2], 9, f"{row.get('accuracy',0):.2%}", 1, 0, "C")
+                    pdf.cell(w[3], 9, f"{row.get('latency_ms_per_tweet',0):.1f}ms", 1, 0, "C")
+                    
+                    pdf.set_text_color(*(SUCCESS_COLOR if is_top else (180, 180, 180)))
+                    pdf.cell(w[4], 9, clean_txt("OPTIMAL" if is_top else "-"), 1, 1, "C")
+                    pdf.set_text_color(*TEXT_COLOR)
+                    pdf.set_font("helvetica", size=9)
+            else:
+                pdf.set_font("helvetica", "I", 9)
+                pdf.cell(0, 8, "No benchmark data available for this session.", ln=True)
+            pdf.ln(5)
+
+            # ─── 2. DEEP ERROR ATTRIBUTION ───
+            best_model_name = sorted_bench[0].get('model') if benchmark_data else run.get('model', 'modernbert')
+            add_header(f"Deep Attribution: {best_model_name}", 2)
+            pdf.set_font("helvetica", size=8)
+            
+            def get_err_data(name):
+                p = self.results_dir / best_model_name / f"{name}.csv"
+                if p.exists():
+                    try:
+                        import pandas as pd
+                        df = pd.read_csv(p)
+                        return df.to_dict(orient="records")[:4] # Display top 4 rows
+                    except: return []
+                return []
+
+            e_len = get_err_data("error_by_length")
+            e_sig = get_err_data("error_by_signal")
+            e_conf = get_err_data("error_by_confidence")
+
+            if e_len or e_sig or e_conf:
+                start_y = pdf.get_y()
+                pdf.set_fill_color(248, 250, 252)
+                
+                # Sub-tables side by side
+                sections = [("BY LENGTH", e_len, 10, "length_bucket"), 
+                            ("BY SIGNAL", e_sig, 75, "value"), 
+                            ("BY CONFIDENCE", e_conf, 140, "confidence_bucket")]
+                
+                for lbl, data, x, key in sections:
+                    pdf.set_xy(x, start_y)
+                    pdf.set_font("helvetica", "B", 8)
+                    pdf.set_text_color(*SUBTEXT_COLOR)
+                    pdf.cell(60, 6, lbl, 0, 1, "L")
+                    pdf.set_font("helvetica", size=8)
+                    pdf.set_text_color(*TEXT_COLOR)
+                    for r in data:
+                        pdf.set_x(x)
+                        pdf.cell(60, 5, f"{clean_txt(r.get(key))}: {r.get('error_rate',0):.1%}", "B", 1)
+                
+                pdf.set_y(start_y + 30)
+            else:
+                pdf.set_font("helvetica", "I", 9)
+                pdf.cell(0, 8, "No additional attribution metrics available for this run.", ln=True)
+                
+            pdf.ln(5)
+
+            # ─── 3. STRATEGIC BACKTEST IMPACT ───
+            add_header("Strategic Backtest Impact", 3)
+            m = run.get("metrics", {})
+            base, gated = m.get("baseline", {}), m.get("gated", {})
+            
+            pdf.set_font("helvetica", "B", 9)
+            pdf.set_text_color(*SUBTEXT_COLOR)
+            pdf.cell(0, 6, f"METRIC COMPARISON: BASELINE (GREY) VS NLP AUGMENTED (INDIGO)", ln=True)
+            pdf.ln(2)
+
+            def draw_kpi_bar(label, base_val, gated_val, max_scale, is_pct=True, is_currency=False):
+                pdf.set_x(15)
+                pdf.set_font("helvetica", "B", 9)
+                pdf.set_text_color(*TEXT_COLOR)
+                pdf.cell(35, 10, clean_txt(label), ln=False)
+                
+                # Values text
+                pdf.set_font("helvetica", size=8)
+                pdf.set_text_color(*SUBTEXT_COLOR)
+                if is_pct:
+                    val_str = f"{base_val:+.2%} -> {gated_val:+.2%}"
+                elif is_currency:
+                    val_str = f"${base_val:,.0f} -> ${gated_val:,.0f}"
+                else:
+                    val_str = f"{base_val:.2f} -> {gated_val:.2f}"
+                pdf.cell(45, 10, val_str, ln=False)
+                
+                # Draw visual bars
+                start_x = 100
+                bar_y = pdf.get_y() + 3
+                # Base track
+                pdf.set_fill_color(241, 245, 249)
+                pdf.rect(start_x, bar_y, 90, 4, "F")
+                
+                # Baseline bar
+                b_w = max(2, (abs(base_val)/max_scale) * 90)
+                pdf.set_fill_color(203, 213, 225) # Slate 300
+                pdf.rect(start_x, bar_y, b_w, 1.5, "F")
+                
+                # Gated bar
+                g_w = max(2, (abs(gated_val)/max_scale) * 90)
+                pdf.set_fill_color(*ACCENT_COLOR) # Indigo
+                pdf.rect(start_x, bar_y + 2, g_w, 2, "F")
+                pdf.ln(8)
+
+            # Scale calculation helpers (prevent division by zero)
+            def smax(*args): return max(1e-5, max([abs(x) for x in args]))
+
+            draw_kpi_bar("TOTAL RETURN", base.get('total_return',0), gated.get('total_return',0), smax(base.get('total_return',0), gated.get('total_return',0))*1.2)
+            draw_kpi_bar("SHARPE RATIO", base.get('sharpe_ratio',0), gated.get('sharpe_ratio',0), smax(base.get('sharpe_ratio',0), gated.get('sharpe_ratio',0))*1.2, False)
+            draw_kpi_bar("MAX DRAWDOWN", base.get('max_drawdown',0), gated.get('max_drawdown',0), 1.0) # Scale against 100% DD
+            draw_kpi_bar("WIN RATE", base.get('win_rate',0), gated.get('win_rate',0), 1.0)
+            draw_kpi_bar("FINAL BALANCE", base.get('final_balance',0), gated.get('final_balance',0), smax(base.get('final_balance',0), gated.get('final_balance',0))*1.2, False, True)
+
+            pdf.ln(5)
+
+            # ─── 4. EXECUTIVE SUMMARY ───
+            add_header("AI Research Executive Summary", 4)
+            summary_prompt = "Synthesize these results into a professional research executive summary. Cover model performance, max drawdown improvements, and final strategic verdicts. Plain text only. 2 paragraphs max. DO NOT USE EMOJIS."
+            summary_raw = self.grounded_chat(run, summary_prompt, benchmark_data=benchmark_data)
+            
+            # Robust Text Sanitization for fpdf2
+            import re
+            # Remove markdown headers and asterisks
+            sum_body = re.sub(r'#+\s+', '', summary_raw)
+            sum_body = re.sub(r'\*\*(.*?)\*\*', r'\1', sum_body)
+            sum_body = re.sub(r'\*(.*?)\*', r'\1', sum_body)
+            sum_body = re.sub(r'`(.*?)`', r'\1', sum_body)
+            # Ensure ascii to prevent encoding crashes
+            sum_body = clean_txt(sum_body)
+            
+            pdf.set_font("helvetica", size=10)
+            pdf.set_text_color(51, 65, 85) # Slate 700
+            # Light blue background box for summary
+            pdf.set_fill_color(248, 250, 255)
+            pdf.set_draw_color(220, 230, 255)
+            pdf.rect(10, pdf.get_y(), 190, 60, "FD")
+            
+            pdf.set_xy(15, pdf.get_y() + 5)
+            pdf.multi_cell(180, 6, sum_body)
+
+            pdf_path = self.results_dir / "Session_Analysis_Report.pdf"
             pdf.output(str(pdf_path))
             return pdf_path
         except Exception as e:
             logger.error(f"PDF generation failed: {e}")
-            report_path = self.results_dir / "Analysis_Report.txt"
-            with open(report_path, "w") as f:
-                f.write(json.dumps(run_artifact, indent=2))
-            return report_path
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(f"PDF formatting failed: {e}")
 
     def grounded_chat(self, run_artifact: Optional[Dict[str, Any]], query: str, benchmark_data: Optional[List[Dict[str, Any]]] = None) -> str:
         # Construct a rich context from the provided data
@@ -742,89 +935,4 @@ class AnalysisEngine:
         grounded = self.ground_news_in_price(raw_news)
         return grounded
 
-    def generate_pdf_report(self, run: Dict[str, Any]) -> Path:
-        """Generates a PDF report summarizing the backtest and benchmark results."""
-        try:
-            from fpdf import FPDF
-        except ImportError:
-            logger.error("fpdf2 is not installed. PDF generation failed.")
-            raise RuntimeError("PDF generation requires the fpdf2 library.")
-        
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("helvetica", style="B", size=18)
-        
-        # Title
-        pdf.cell(0, 15, "Session Analysis Report", ln=True, align="C")
-        pdf.ln(5)
-        
-        # Meta Data
-        pdf.set_font("helvetica", size=10)
-        from datetime import datetime
-        pdf.cell(0, 8, f"Generated: {datetime.now().strftime('%B %d, %Y')}", ln=True, align="C")
-        pdf.ln(10)
-        
-        if not run:
-            pdf.cell(0, 10, "No backtest data available for this session.", ln=True)
-            pdf_path = self.repo_root / "results" / "Session_Analysis_Report.pdf"
-            pdf.output(str(pdf_path))
-            return pdf_path
 
-        # 1. Backtest Details
-        pdf.set_font("helvetica", style="B", size=14)
-        pdf.cell(0, 10, "1. Backtest Simulation Overview", ln=True)
-        pdf.set_line_width(0.5)
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(5)
-        
-        pdf.set_font("helvetica", size=12)
-        pdf.cell(0, 8, f"Model: {run.get('model', 'Unknown')}", ln=True)
-        pdf.cell(0, 8, f"Strategy: {run.get('strategy', 'Unknown')}", ln=True)
-        pdf.cell(0, 8, f"Period: {run.get('from_date', 'N/A')} to {run.get('to_date', 'N/A')}", ln=True)
-        pdf.ln(8)
-        
-        # 2. Performance Metrics Comparison
-        pdf.set_font("helvetica", style="B", size=14)
-        pdf.cell(0, 10, "2. Performance Metrics Comparison", ln=True)
-        pdf.line(pdf.get_x(), pdf.get_y(), pdf.get_x() + 190, pdf.get_y())
-        pdf.ln(5)
-        
-        metrics = run.get("metrics", {})
-        baseline = metrics.get("baseline", {})
-        gated = metrics.get("gated", {})
-        
-        # Table Header
-        pdf.set_font("helvetica", style="B", size=12)
-        pdf.set_fill_color(230, 230, 240)
-        pdf.cell(60, 10, "Metric", border=1, fill=True)
-        pdf.cell(65, 10, "Baseline Strategy", border=1, align="C", fill=True)
-        pdf.cell(65, 10, "NLP Augmented (Gated)", border=1, align="C", fill=True)
-        pdf.ln()
-        
-        # Table Data
-        pdf.set_font("helvetica", size=11)
-        data = [
-            ("Total Return", f"{baseline.get('total_return', 0)*100:.2f}%", f"{gated.get('total_return', 0)*100:.2f}%"),
-            ("Sharpe Ratio", f"{baseline.get('sharpe_ratio', 0):.2f}", f"{gated.get('sharpe_ratio', 0):.2f}"),
-            ("Max Drawdown", f"{baseline.get('max_drawdown', 0)*100:.2f}%", f"{gated.get('max_drawdown', 0)*100:.2f}%"),
-            ("Win Rate", f"{baseline.get('win_rate', 0)*100:.2f}%", f"{gated.get('win_rate', 0)*100:.2f}%"),
-            ("Final Balance", f"${baseline.get('final_balance', 0):,.2f}", f"${gated.get('final_balance', 0):,.2f}")
-        ]
-        
-        for row in data:
-            pdf.cell(60, 10, row[0], border=1)
-            pdf.cell(65, 10, row[1], border=1, align="C")
-            pdf.cell(65, 10, row[2], border=1, align="C")
-            pdf.ln()
-            
-        pdf.ln(10)
-        
-        # 3. Disclaimer
-        pdf.set_font("helvetica", style="I", size=9)
-        pdf.set_text_color(100, 100, 100)
-        pdf.multi_cell(0, 6, "Disclaimer: This analysis is automatically generated for research purposes only. "
-                              "It does not constitute financial advice. Past performance is no guarantee of future results.", align="C")
-        
-        pdf_path = self.results_dir / "Session_Analysis_Report.pdf"
-        pdf.output(str(pdf_path))
-        return pdf_path

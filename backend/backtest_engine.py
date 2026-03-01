@@ -8,8 +8,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from backend.data_loader import DataLoader
-
 logger = logging.getLogger(__name__)
 
 class BacktestEngine:
@@ -18,12 +16,11 @@ class BacktestEngine:
         self.results_dir = repo_root / "results"
         self.results_dir.mkdir(exist_ok=True)
         self.artifact_path = self.results_dir / "RunArtifact.json"
-        self.data_loader = DataLoader(repo_root / "dataset" / "btc_data")
 
     def load_price_data(self, from_date: str = "2024-01-01", to_date: str = None) -> pd.DataFrame:
         """
         Load historical BTC price data from 2024-01-01 to yesterday.
-        Tries: cached Jan-2025 tick data → yfinance → generated demo data.
+        Tries: yfinance → local CSV → generated demo data.
         """
         if to_date is None:
             to_date = (pd.Timestamp.now() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
@@ -42,24 +39,7 @@ class BacktestEngine:
         except Exception as e:
             logger.warning(f"yfinance failed: {e}")
 
-        # 2. Try cached Jan-2025 tick data (subset of full range)
-        try:
-            jan_paths = self.data_loader.fetch_data_range(
-                symbol="BTCUSDT",
-                from_date="2025-01-01",
-                to_date="2025-01-31"
-            )
-            if jan_paths:
-                df = self.data_loader.get_combined_df(jan_paths)
-                if not df.empty:
-                    df.set_index("Date", inplace=True)
-                    resampled = df["Close"].resample("D").last().dropna().reset_index()
-                    logger.info(f"Loaded {len(resampled)} days from Jan-2025 tick data (fallback).")
-                    return resampled
-        except Exception as e:
-            logger.warning(f"Tick data fallback failed: {e}")
-
-        # 3. Local CSV fallback
+        # 2. Local CSV fallback
         price_path = self.repo_root / "dataset" / "btc_historical_price.csv"
         if price_path.exists():
             df = pd.read_csv(price_path)
