@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 
 const fmt = (v, d = 4) => {
@@ -123,40 +121,23 @@ export default function SessionAnalysis({ benchmark = [], errorSummaries = {}, l
     }, [bestModel?.model, hasBenchmark]);
 
     const handleDownloadPDF = async () => {
-        if (!reportRef.current) return;
         setDownloading(true);
         try {
-            // First scroll to top to ensure canvas captures everything correctly
-            window.scrollTo(0, 0);
-
-            // Hide the download button during capture so it doesn't appear in PDF
-            const downloadBtn = document.getElementById("pdf-download-btn");
-            if (downloadBtn) downloadBtn.style.display = "none";
-
-            const canvas = await html2canvas(reportRef.current, {
-                scale: 2, // higher resolution
-                useCORS: true,
-                backgroundColor: "#000000", // Match app background
-            });
-
-            if (downloadBtn) downloadBtn.style.display = ""; // Restore button
-
-            const imgData = canvas.toDataURL("image/png");
-
-            // A4 size: 210 x 297 mm
-            const pdf = new jsPDF("p", "mm", "a4");
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-            pdf.save("Session_Analysis_Report.pdf");
-
+            const res = await fetch("/api/pdf");
+            if (res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "Session_Analysis_Report.pdf";
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert("PDF generation failed. Run a backtest first.");
+            }
         } catch (e) {
-            alert("Failed to capture PDF: " + e.message);
-            console.error(e);
-        } finally {
-            setDownloading(false);
-        }
+            alert("Failed to download PDF: " + e.message);
+        } finally { setDownloading(false); }
     };
 
 
