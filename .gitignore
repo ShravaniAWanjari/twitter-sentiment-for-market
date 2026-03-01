@@ -17,7 +17,7 @@ build/
 .vite/
 
 # ML specific
-dataset/
+dataset/btc_data
 results/
 experiments/runs/
 experiments/*_runs/
