@@ -1,0 +1,202 @@
+Crypto News
+Search and Monitor Worldwide Cryptocurrency-related news and blog data from the most reliable News and Blog Websites.
+
+Retrieving the latest news allows you to build experience such as showcasing the latest news, breaking news tickers and analyzing News to better understand their content.
+
+Note: For Free users, news articles are delayed by 12 hours.
+
+Resource URL
+
+https://newsdata.io/api/1/crypto?apikey=pub_d627624cbaf1496995d1135b92e85d5b
+
+Resource Information
+
+Response Format
+JSON
+Requires Authentication
+Yes
+Rate Limited
+Yes
+Requests per 15 min window
+1800 credits (paid plans)
+Parameters
+Below are the Request Parameters you need to put in your query to run the API.
+
+Name	Required	Description	Default Value	Example
+apikey
+Required
+You need to add your API Key while accessing the newsdata API. 
+How to get the NewsData.io API key.
+id
+Optional
+Search the specific news article from its unique article_id string. You can add up to 50 article id strings in a single query or as per your specified limit.
+id=article_id
+id=article_id_1,article_id_2,
+article_id_3
+coin
+Optional
+Search the news articles for a specific language. Include up to 5 coins per query on Free and Basic plans. Professional and Corporate plans support up to 10 coins
+coin=btc
+coin=eth,usdt,bnb
+q
+Optional
+Search news articles for specific keywords or phrases present in the news title, content, URL, meta keywords and meta description. The value must be URL-encoded and the maximum character limit permitted is 512 characters.
+Please refer Advanced Search for more details
+q=pizza
+qInTitle
+Optional
+Search news articles for specific keywords or phrases present in the news titles only. The value must be URL-encoded and the maximum character limit permitted is 512 characters.
+Note: qInTitle can't be used with q or qInMeta parameter in the same query.
+qInTitle=pizza
+qInMeta
+Optional
+Search news articles for specific keywords or phrases present in the news titles, URL, meta keywords and meta description only. The value must be URL-encoded and the maximum character limit permitted is 512 characters.
+Note: qInMeta can't be used with q or qInTitle parameter in the same query.
+qInMeta=pizza
+timeframe
+Optional
+Search the news articles for a specific timeframe (Minutes and Hours). For hours, you can set a timeframe of 1 to 48, and for minutes, you can define a timeframe of 1m to 2880m. For example, if you want to get the news for the past 6 hours then use timeframe=6 and if you want to get news for the last 15 min then use timeframe=15m.
+Note - You can only use timeframe either in hours or minutes.
+For Hours -
+timeframe=1
+timeframe=6
+timeframe=24
+For Minutes -
+timeframe=15m
+timeframe=45m
+timeframe=90m
+from_date
+Optional
+Use from_date filter to get news data from a particular date in the past. Note: If you didn’t specify from_date then from_date will be considered as per your subscription plan. For example, if you have purchased the professional subscription plan and didn’t mention from_date then the API will automatically fetch the data from the past 1 year.
+from_date=YYYY-MM-DD
+from_date=2025-01-01
+from_date=YYYY-MM-DD HH:MM:SS
+from_date=2025-01-01 06:12:45
+to_date
+Optional
+This filter is used to set an end date for the search result.
+Note: If you didn't specify to_date then the API will fetch the data till today
+to_date=YYYY-MM-DD
+to_date=2025-01-30
+to_date=YYYY-MM-DD HH:MM:SS
+to_date=2025-01-30 06:12:45
+language
+Optional
+Search the news articles for a specific language. Include up to 5 languages per query on Free and Basic plans. Professional and Corporate plans support up to 10 languages. 
+Check the codes for all the languages here.
+language=fr,en
+excludelanguage
+Optional
+You can exclude specific languages to search for news articles. Exclude up to 5 languages per query on Free and Basic plans. Professional and Corporate plans support up to 10 languages. 
+Note: You can use either the 'language' parameter to include specific languages or the 'excludelanguage' parameter to exclude them, but not both simultaneously.
+excludelanguage=fr,en
+sort
+Optional
+You can sort the search results based on your preferred criteria to organize how news articles appear in the response. You can use the sort parameter with one of the following options: 
+pubdateasc – Sort articles by publish date in ascending order (oldest to newest).
+relevancy – Sort articles by most relevant results first based on your query.
+source – Sort results by source priority (top to low).
+fetched_at - Sort articles by their fetched date.
+Note: By default, results are sorted by publish date (newest first) if no sort parameter is specified.
+sort=relevancy
+sort=fetched_at
+url
+Optional
+You can search for a specific news article by providing its URL.
+url=https://newsdata.io/blog/multiple-api-key-newsdata-io
+tag
+Optional
+Search the news articles for specific AI-classified tags. Include up to 10 tags per query.(Available only for Professional and Corporate users)
+Check the codes for all the crypto AI tags here.
+With Custom AI Tags (Corporate Yearly Plan only), you can request your own tag to classify articles based on your specific topic or tag
+tag=blockchain
+sentiment
+Optional
+Search the news articles based on the sentiment of the news article (positive, negative, neutral).
+(Available only for Professional and Corporate users)
+sentiment=positive
+domain
+Optional
+Search the news articles for specific domains or news sources. Include up to 5 domains per query on Free and Basic plans. Professional and Corporate plans support up to 10 domains.
+You can check the name of the domains here
+domain=nytimes,bbc
+domainurl
+Optional
+Search the news articles for specific domains or news sources. Include up to 5 domains per query on Free and Basic plans. Professional and Corporate plans support up to 10 domains.
+Note: If the domain is incorrect, It will give suggestions in the response
+domainurl=nytimes.com,
+bbc.com,bbc.co.uk
+excludedomain
+Optional
+You can exclude specific domains or news sources to search the news articles. Exclude up to 5 domains per query on Free and Basic plans. Professional and Corporate plans support up to 10 domains. Note: If the domain is incorrect, It will give suggestions in the response
+excludedomain=nytimes.com,
+bbc.com,bbc.co.uk
+excludefield
+Optional
+you can limit the response object to search for news articles. You can exclude multiple response objects in a single query.
+Note: You cannot exclude article ID from the response field
+excludefield=pubdate
+excludefield=source_icon,
+pubdate,link
+prioritydomain
+Optional
+Search the news articles only from top news domains. We have categorized prioritydomain in 3 categories.
+Top: Fetches news articles from the top 10% of the news domains
+Medium: Fetches news articles from the top 30% of the news domains. It means it already includes all the news articles of 'top' priority.
+Low: Fetches news articles from the top 50% of the news domains. It means it already includes all the news articles of 'top' and 'medium' priorities.
+prioritydomain=top
+prioritydomain=medium
+prioritydomain=low
+timezone
+Optional
+Search the news articles for a specific timezone. You can add any specific timezone.
+You can check the timezone here
+timezone=America/New_york
+timezone=Asia/Kolkata
+timezone=Asia/Qatar
+timezone=Europe/Berli
+full_content
+Optional
+Search the news articles with full content or without full content. Use '1' for news articles which contain the full_content response object and '0' for news articles which don't contain full_content response object.
+full_content=1
+full_content=0
+image
+Optional
+Search the news articles with featured image or without featured image. Use 1 for articles with featured image and 0 for articles without featured image.
+image=1
+image=0
+video
+Optional
+Search the news articles with videos or without videos. Use 1 for articles with videos and 0 for articles without videos.
+video=1
+video=0
+removeduplicate
+Optional
+The 'removeduplicate' parameter will allow users to filter out duplicate articles. Use 1 to remove duplicate articles.
+(Note: The overall 'removeduplicate' parameter functioning works on the basis of Newsdata.io's internal algorithm. It doesn't imply that the article which has a 'removeduplicate=1' parameter is actually a duplicate article.)
+removeduplicate=1
+size
+Optional
+You can customize the number of articles you get per API request from 1 to 50.
+Free user - 10
+Paid user - 50
+size=25
+page
+Optional
+Use page parameter to navigate to the next page. To know more:
+click here
+Example Queries
+
+1. Crypto News related to Bitcoin only
+
+https://newsdata.io/api/1/crypto?apikey=pub_d627624cbaf1496995d1135b92e85d5b&coin=btc
+
+2. Crypto News in Italian and Japanese language
+
+https://newsdata.io/api/1/crypto?apikey=pub_d627624cbaf1496995d1135b92e85d5b&language=it,jp
+
+3. Crypto News from the domain coindesk
+
+https://newsdata.io/api/1/crypto?apikey=pub_d627624cbaf1496995d1135b92e85d5b&domainurl=coindesk.com
+
+To dive deeper with practical examples visit - Crypto News API Endpoints
